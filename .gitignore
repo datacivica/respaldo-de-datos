@@ -1,0 +1,115 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# compiled output
+dist/
+build/
+!webapp/build/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+*.swp
+
+# Tests
+coverage
+.nyc_output
+
+# IDEs and editors
+.vscode/
+.vscode*
+.idea/
+*.sublime-workspace
+.netbeans
+nbproject
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+
+# env files
+.env*
+env*.yml
+
+# Node
+.node_history
+*.lock
+*-lock.json
+*-lock.yaml
+node_modules/
+packages-cache/
+
+# Git
+.history/
+
+# DevOps
+kube/deployment.yml
+
+# package directories
+node_modules
+jspm_packages
+
+# Serverless directories
+.serverless/
+
+.firebase/
+.vagrant/
+.history/
+.idea/
+.nyc_output/
+.vscode/
+coverage/
+yarn.lock
+package-lock.json
+_report_
+__pycache__/
+apienv/
+api/files/
+db/db/
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
