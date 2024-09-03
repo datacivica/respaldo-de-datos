@@ -1,5 +1,17 @@
 # Respaldo-de-datos
 
+## installation
+
+```env
+python3 -m venv env
+```
+
+```pip
+pip3 install -r requirements.txt
+```
+
+## Usage
+
 ```Usage:
   main.py <file_path> <file_format> <start_index> <end_index> <dev_name>
 

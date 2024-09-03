@@ -1,0 +1,10 @@
+asyncio
+nest-asyncio
+numpy
+openpyxl
+pandas
+requests
+requests-html
+lxml_html_clean
+docopt
+
