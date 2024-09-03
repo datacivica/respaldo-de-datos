@@ -12,7 +12,7 @@ Arguments:
 
     start_index:   The starting index of the range within the DataFrame from which you will begin scraping URLs. This should be an integer indicating the first row of the DataFrame to process.
 
-    end_index:     The ending index of the range within the DataFrame where you will stop scraping URLs. This should be an integer indicating the last row of the DataFrame to process.
+    end_index:     The ending index of the range within the DataFrame where you will stop scraping URLs. This should be an integer indicating the last row of the DataFrame to process, type all if you want all indexes.
 
     dev_name:      Your name
 

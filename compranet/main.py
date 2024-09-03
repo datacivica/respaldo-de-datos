@@ -1,5 +1,5 @@
 #######################################################
-############### ORG:DataCivica ##################
+############### ORG: DataCivica ##################
 #######################################################
 ############### Author: Basem Hamza ##################
 #######################################################
@@ -17,7 +17,7 @@ Arguments:
 
     start_index:   The starting index of the range within the DataFrame from which you will begin scraping URLs. This should be an integer indicating the first row of the DataFrame to process.
 
-    end_index:     The ending index of the range within the DataFrame where you will stop scraping URLs. This should be an integer indicating the last row of the DataFrame to process.
+    end_index:     The ending index of the range within the DataFrame where you will stop scraping URLs. This should be an integer indicating the last row of the DataFrame to process, type all if you want all indexes.
     
     dev_name:      Your name
     
@@ -45,7 +45,11 @@ dev_name = arguments["<dev_name>"]
 start_index = arguments["<start_index>"]
 end_index = arguments["<end_index>"]
 start_index = int(start_index)
-end_index = int(end_index)
+
+if end_index == "all":
+    end_index = -1
+else:
+    end_index = int(end_index)
 #######################################################
 ############### logging basic Config ##################
 #######################################################
