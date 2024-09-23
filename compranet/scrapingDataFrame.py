@@ -189,15 +189,21 @@ class ScrapingDataFrame:
 
     # Function chromium launcher
     async def launch_browser(
-        self, url, p: Playwright, listpaths, uuid, downloads_path, browser, df: pd.DataFrame, retry=0
-
+        self,
+        url,
+        p: Playwright,
+        listpaths,
+        uuid,
+        downloads_path,
+        browser,
+        df: pd.DataFrame,
+        retry=0,
     ) -> pd.DataFrame:
         start_time = time.time()
         page = await browser.new_page()
         try:
             await page.goto(url, timeout=20**4)
             await page.wait_for_timeout(3000)
-
 
             label_text = await page.inner_text(
                 'div:has-text("Código del expediente:") label:last-child'
@@ -209,11 +215,15 @@ class ScrapingDataFrame:
                 if datos_relevantes:
                     try:
                         await datos_relevantes.click(timeout=10**4)
-                        async with page.expect_download(timeout=10**5) as relevantes_info:
+                        async with page.expect_download(
+                            timeout=10**5
+                        ) as relevantes_info:
                             await page.click('span.p-button-label:text("Exportar")')
                             download = await relevantes_info.value
                             file_name = download.suggested_filename
-                            file_path = os.path.join(f"{downloads_path}/{uuid}", file_name)
+                            file_path = os.path.join(
+                                f"{downloads_path}/{uuid}", file_name
+                            )
                             listpaths.append(file_path)
                             await download.save_as(file_path)
                         await page.click(
@@ -228,6 +238,7 @@ class ScrapingDataFrame:
                             listpaths=listpaths,
                             downloads_path=downloads_path,
                             df=df,
+                            browser=browser,
                         )
                         logger_download.error(f" download file {file_name} from {url}")
                         pass
@@ -240,7 +251,9 @@ class ScrapingDataFrame:
                 if download_elements:
                     for i, element in enumerate(download_elements):
                         try:
-                            async with page.expect_download(timeout=15**6) as download_info:
+                            async with page.expect_download(
+                                timeout=15**6
+                            ) as download_info:
                                 await element.click()
                                 download = await download_info.value
                                 # await page.wait_for_timeout(3000)
@@ -256,7 +269,9 @@ class ScrapingDataFrame:
                                 )
                                 continue
                         except TimeoutError:
-                            logger_download.error(f" download file {file_name} from {url}")
+                            logger_download.error(
+                                f" download file {file_name} from {url}"
+                            )
                             await self.launch_browser(
                                 url=url,
                                 uuid=uuid,
@@ -264,6 +279,7 @@ class ScrapingDataFrame:
                                 listpaths=listpaths,
                                 downloads_path=downloads_path,
                                 df=df,
+                                browser=browser,
                             )
                             continue
 
@@ -291,13 +307,15 @@ class ScrapingDataFrame:
                     listpaths=listpaths,
                     downloads_path=downloads_path,
                     df=df,
+                    browser=browser,
                 )
 
-
         except TimeoutError:
-            if (retry < 5):
+            if retry < 5:
                 await page.close()
-                logger_download.error(f" retry {retry} timeout in launch_browser from {url}")
+                logger_download.error(
+                    f" retry {retry} timeout in launch_browser from {url}"
+                )
                 await self.launch_browser(
                     url=url,
                     uuid=uuid,
@@ -305,9 +323,8 @@ class ScrapingDataFrame:
                     listpaths=listpaths,
                     downloads_path=downloads_path,
                     df=df,
-                    retry=retry+1,
-                    browser=browser
-
+                    retry=retry + 1,
+                    browser=browser,
                 )
             else:
                 logger_download.error(f" abandoned after 5 retries {url}")
@@ -320,7 +337,6 @@ class ScrapingDataFrame:
         listpaths = []
         attempt = 0
 
-
         async with async_playwright() as p:
             while attempt < retries:
                 try:
@@ -332,7 +348,7 @@ class ScrapingDataFrame:
                         listpaths=listpaths,
                         downloads_path=downloads_path,
                         df=df,
-                        browser=browser
+                        browser=browser,
                     )
                 except ProtocolError as e:
                     print(
@@ -351,6 +367,7 @@ class ScrapingDataFrame:
                         listpaths=listpaths,
                         downloads_path=downloads_path,
                         df=df,
+                        browser=browser,
                     )
 
                 except TimeoutError:
@@ -362,8 +379,9 @@ class ScrapingDataFrame:
                         listpaths=listpaths,
                         downloads_path=downloads_path,
                         df=df,
+                        browser=browser,
                     )
-                    continue  
+                    continue
                 except PlaywrightError as e:
                     if "net::ERR_NAME_NOT_RESOLVED" in str(e):
                         print(
@@ -387,6 +405,7 @@ class ScrapingDataFrame:
                             listpaths=listpaths,
                             downloads_path=downloads_path,
                             df=df,
+                            browser=browser,
                         )
                     if "net::ERR_INTERNET_DISCONNECTED" in str(e):
                         print(
@@ -410,8 +429,9 @@ class ScrapingDataFrame:
                             listpaths=listpaths,
                             downloads_path=downloads_path,
                             df=df,
+                            browser=browser,
                         )
-                      
+
                     else:
                         logger_download.error(f"Unhandled error fetching {url}")
                         raise e
@@ -439,6 +459,7 @@ class ScrapingDataFrame:
                         listpaths=listpaths,
                         downloads_path=downloads_path,
                         df=df,
+                        browser=browser,
                     )
 
     def main(self) -> None:
