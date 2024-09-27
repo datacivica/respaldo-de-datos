@@ -469,7 +469,7 @@ class ScrapingDataFrame:
         #######################################################
         #######################################################
         if self.file_format == "xlsx":
-            df = pd.read_excel(f"{self.file_path}", sheet_name="Sheet1")
+            df = pd.read_excel(f"{self.file_path}", sheet_name="Hoja1")
         if self.file_format == "csv":
             df = pd.read_csv(f"{self.file_path}")
 
