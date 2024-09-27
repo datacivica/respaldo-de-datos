@@ -61,11 +61,11 @@ class ScrapingDataFrame:
         self,
         file_path: str,
         file_format: str,
-        sem: int | None,
-        output_file_name: str | None,
+        sem,
+        output_file_name,
         name: str,
-        downloads_path: str | None,
-        column_name: str | None,
+        downloads_path,
+        column_name,
     ):
         self.file_path = file_path
         self.file_format = file_format
@@ -240,7 +240,7 @@ class ScrapingDataFrame:
                             df=df,
                             browser=browser,
                         )
-                        logger_download.error(f" download file {file_name} from {url}")
+                        logger_download.error(f" download files from {url}")
                         pass
                 else:
                     print("Element not found")
@@ -270,7 +270,7 @@ class ScrapingDataFrame:
                                 continue
                         except TimeoutError:
                             logger_download.error(
-                                f" download file {file_name} from {url}"
+                                f" download files from {url}"
                             )
                             await self.launch_browser(
                                 url=url,
@@ -433,8 +433,16 @@ class ScrapingDataFrame:
                         )
 
                     else:
-                        logger_download.error(f"Unhandled error fetching {url}")
-                        raise e
+                         logger_download.error(f"Unhandled error fetching {url}")
+                         return await self.launch_browser(
+                            url=url,
+                            uuid=uuid,
+                            p=p,
+                            listpaths=listpaths,
+                            downloads_path=downloads_path,
+                            df=df,
+                            browser=browser,
+                         )
                 except (
                     ConnectionClosedError,
                     ConnectionResetError,
@@ -469,7 +477,7 @@ class ScrapingDataFrame:
         #######################################################
         #######################################################
         if self.file_format == "xlsx":
-            df = pd.read_excel(f"{self.file_path}", sheet_name="Sheet1")
+            df = pd.read_excel(f"{self.file_path}", sheet_name="Hoja1")
         if self.file_format == "csv":
             df = pd.read_csv(f"{self.file_path}")
 
