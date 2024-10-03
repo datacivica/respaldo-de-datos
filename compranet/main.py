@@ -1,6 +1,6 @@
 """
 Usage:
-  main.py <file_path> <file_format> <name> [--sem=<sem>] [--output_file_name=<output_file_name>] [--downloads_path=<downloads_path>] [--col=<column_name>]
+  main.py <file_path> <file_format> <name> [--sem=<sem>] [--output_file_name=<output_file_name>] [--downloads_path=<downloads_path>] [--col=<column_name>] [--browser=<browser>]
 
 Arguments:
     -h --help
@@ -20,6 +20,8 @@ Options:
 
     --downloads_path=<downloads_path>: This flag is used to specify the path where the files that are downloaded during the scraping process will be saved. The value of <downloads_path> should be a string that represents the desired file path (e.g. --downloads_path=/home/user/downloads).
     
+    --browser=<browser>: This flag is used to specify the browser you want to use eg. firefox chromium webkit. default chromium.
+    
 """
 
 from scrapingDataFrame import ScrapingDataFrame
@@ -38,6 +40,7 @@ def main():
     output_file_name = arguments["--output_file_name"]
     downloads_path = arguments["--downloads_path"]
     column_name = arguments["--col"]
+    browser = arguments["--browser"]
 
     sem = int(sem) if sem is not None else 10
     scraping = ScrapingDataFrame(
@@ -48,6 +51,7 @@ def main():
         sem=sem,
         downloads_path=downloads_path,
         column_name=column_name,
+        browser=browser,
     )
     scraping.main()
 

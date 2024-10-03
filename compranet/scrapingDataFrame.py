@@ -5,6 +5,7 @@
 #######################################################
 #######################################################
 
+from datetime import datetime
 import json
 import logging
 from time import sleep
@@ -15,7 +16,7 @@ import openpyxl
 import pandas as pd
 import asyncio
 import nest_asyncio
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, Browser
 from playwright.async_api import Playwright
 import os
 import random
@@ -66,6 +67,7 @@ class ScrapingDataFrame:
         name: str,
         downloads_path,
         column_name,
+        browser
     ):
         self.file_path = file_path
         self.file_format = file_format
@@ -82,7 +84,10 @@ class ScrapingDataFrame:
         self.column_name = (
             column_name if column_name is not None else "Dirección del anuncio"
         )
+        self.browser = browser
         self.index = self.load_state()
+        self.current_hour = datetime.now().hour
+        self.jsonData = ""
 
     def load_state(self) -> int:
         try:
@@ -115,7 +120,6 @@ class ScrapingDataFrame:
 
     async def save_df(
         self,
-        # response,
         url,
         uuid,
         i,
@@ -165,7 +169,11 @@ class ScrapingDataFrame:
                 csv_file=csv_file,
                 downloads_path=downloads_path,
             )
-
+            if os.path.exists(f"{downloads_path}/{uuid}"):
+                self.zip_folder(
+                    f"{downloads_path}/{uuid}", f"{downloads_path}/{uuid}.zip"
+                )
+                self.delete_folder(f"{downloads_path}/{uuid}")
             self.index += 1
             self.save_state()
             return
@@ -187,6 +195,14 @@ class ScrapingDataFrame:
         match = "".join([match.group(1) for match in matches])
         return match
 
+    async def print_response(self, res, df, url, uuid):
+        if f"/whitney/sitiopublico/expedientes/{uuid}?id_proceso=" in res.url:
+            print(res.url)
+            json_data = await res.json()
+            self.jsonData = f"{json_data}"
+            df.loc[df["uuid"] == uuid, "json"] = self.jsonData
+            return self.jsonData
+
     # Function chromium launcher
     async def launch_browser(
         self,
@@ -195,82 +211,74 @@ class ScrapingDataFrame:
         listpaths,
         uuid,
         downloads_path,
-        browser,
+        browser: Browser,
         df: pd.DataFrame,
         retry=0,
     ) -> pd.DataFrame:
         start_time = time.time()
-        page = await browser.new_page()
+        context = await browser.new_context()
+        page = await context.new_page()
+
+        async def handle_response(res, url, df, uuid):
+            datajson = await self.print_response(res=res, url=url, df=df, uuid=uuid)
+            return datajson
+
+        page.on(
+            "response",
+            lambda res: asyncio.ensure_future(
+                handle_response(res=res, url=url, df=df, uuid=uuid)
+            ),
+        )
+
         try:
-            await page.goto(url, timeout=20**4)
+            await page.goto(url, timeout=20**5)
             await page.wait_for_timeout(3000)
-
-            label_text = await page.inner_text(
-                'div:has-text("Código del expediente:") label:last-child'
+            button = page.locator(
+                "app-sitiopublico-detalle-anexos > div > div > p-paginator > div > span > button:nth-child(2)",
+                has_text="2",
             )
-            if label_text != "":
-                body_content = await page.inner_html("body")
+            count = await button.count()
+            if self.current_hour != 0:
                 logger.info(f"Successfully fetched content for {url}")
-                datos_relevantes = await page.query_selector("td.p-link2")
-                if datos_relevantes:
-                    try:
-                        await datos_relevantes.click(timeout=10**4)
-                        async with page.expect_download(
-                            timeout=10**5
-                        ) as relevantes_info:
-                            await page.click('span.p-button-label:text("Exportar")')
-                            download = await relevantes_info.value
-                            file_name = download.suggested_filename
-                            file_path = os.path.join(
-                                f"{downloads_path}/{uuid}", file_name
-                            )
-                            listpaths.append(file_path)
-                            await download.save_as(file_path)
-                        await page.click(
-                            "span.p-dialog-header-close-icon.ng-tns-c51-6.pi.pi-times"
-                        )
-
-                    except TimeoutError:
-                        await self.launch_browser(
-                            url=url,
-                            uuid=uuid,
-                            p=p,
-                            listpaths=listpaths,
-                            downloads_path=downloads_path,
-                            df=df,
-                            browser=browser,
-                        )
-                        logger_download.error(f" download files from {url}")
-                        pass
-                else:
-                    print("Element not found")
-
                 download_elements = await page.query_selector_all(
                     "i.pi.pi-download.ng-star-inserted"
                 )
-                if download_elements:
-                    for i, element in enumerate(download_elements):
-                        try:
-                            async with page.expect_download(
-                                timeout=15**6
-                            ) as download_info:
-                                await element.click()
-                                download = await download_info.value
-                                # await page.wait_for_timeout(3000)
-                                file_name = download.suggested_filename
-                                file_path = os.path.join(
-                                    f"{downloads_path}/{uuid}", file_name
-                                )
-                                listpaths.append(file_path)
-                                await download.save_as(file_path)
+                checkNotFile = page.locator(
+                    "table tr.ng-star-inserted > td:nth-child(4)"
+                )
 
-                                logger_download.info(
-                                    f"Successfully download file {file_name} on {file_path} with {uuid}"
-                                )
+                td_texts = await checkNotFile.all_text_contents()
+                if download_elements:
+                    pairs_element = zip(download_elements, td_texts)
+
+                    for i, (element, total) in enumerate(pairs_element):
+                        print(f"-----------{i}-{total}--------------")
+                        try:
+                            if int(total) != 0:
+                                async with page.expect_download(
+                                    timeout=15**6
+                                ) as download_info:
+                                    await element.click()
+                                    download = await download_info.value
+                                    # await page.wait_for_timeout(3000)
+                                    file_name = download.suggested_filename
+                                    file_path = os.path.join(
+                                        f"{downloads_path}/{uuid}", file_name
+                                    )
+                                    listpaths.append(file_path)
+                                    await download.save_as(file_path)
+
+                                    logger_download.info(
+                                        f"Successfully download file {file_name} on {file_path} with {uuid}"
+                                    )
+                                    continue
+                            else:
+                                print("==============there is no file=================")
                                 continue
+
                         except TimeoutError:
                             logger_download.error(
-                                f" download files from {url}"
+                                f" download file from {url}"
                             )
                             await self.launch_browser(
                                 url=url,
@@ -285,20 +293,21 @@ class ScrapingDataFrame:
 
                 else:
                     print("No elements found for download.")
-                df["html"] = body_content
-                df["Files"] = f"{listpaths}"
+                if count >= 1:
+                    logger.warning(f"tiene pages {url} {count}")
+                    df.loc[df["uuid"] == uuid, "tiene_paginas"] = 1
+                else:
+                    df.loc[df["uuid"] == uuid, "tiene_paginas"] = 0
+
+                df.loc[df["uuid"] == uuid, "Files"] = f"{listpaths}"
                 await browser.close()
-                if os.path.exists(f"{downloads_path}/{uuid}"):
-                    self.zip_folder(
-                        f"{downloads_path}/{uuid}", f"{downloads_path}/{uuid}.zip"
-                    )
-                    self.delete_folder(f"{downloads_path}/{uuid}")
+
                 elapsed_time = time.time() - start_time
                 print(f"Fetching took {elapsed_time:.2f} seconds")
                 return df
             else:
                 logger.warning(f"Error server is closed waiting 1 hour {url}")
-                await asyncio.sleep(3361)
+                await asyncio.sleep(3780)
                 logger.info(f"Retrying {url}")
                 return await self.launch_browser(
                     url=url,
@@ -340,7 +349,13 @@ class ScrapingDataFrame:
         async with async_playwright() as p:
             while attempt < retries:
                 try:
-                    browser = await p.chromium.launch(headless=True, timeout=10**6)
+                    if self.browser == "webkit":
+                        browser = await p.webkit.launch(headless=True, timeout=10**6)
+                    if self.browser == "firefox":
+                        browser = await p.firefox.launch(headless=True, timeout=10**6)
+                    else:
+                        browser = await p.chromium.launch(headless=True, timeout=10**6)
+
                     return await self.launch_browser(
                         url=url,
                         uuid=uuid,
@@ -354,7 +369,7 @@ class ScrapingDataFrame:
                     print(
                         "The server closed the connection unexpectedly. Please try again later."
                     )
-                    attempt += 1
+                    attempt + 1
                     logger_download.error(
                         f"Error fetching {url} (attempt {attempt}): {e}"
                     )
@@ -387,7 +402,7 @@ class ScrapingDataFrame:
                         print(
                             "Unable to resolve the URL. Please check the URL or your network connection."
                         )
-                        attempt += 1
+                        attempt + 1
                         logger_download.exception(
                             f"Error fetching {url} (attempt {attempt}): {e}"
                         )
@@ -411,7 +426,7 @@ class ScrapingDataFrame:
                         print(
                             "ERR_INTERNET_DISCONNECTED Unable waiting until load to resolve the URL. Please check the URL or your network connection."
                         )
-                        attempt += 1
+                        attempt + 1
                         logger_download.exception(
                             f"Error fetching {url} (attempt {attempt}): {e}"
                         )
@@ -433,16 +448,8 @@ class ScrapingDataFrame:
                         )
 
                     else:
-                         logger_download.error(f"Unhandled error fetching {url}")
-                         return await self.launch_browser(
-                            url=url,
-                            uuid=uuid,
-                            p=p,
-                            listpaths=listpaths,
-                            downloads_path=downloads_path,
-                            df=df,
-                            browser=browser,
-                         )
+                        logger_download.error(f"Unhandled error fetching {url}")
+                        raise e
                 except (
                     ConnectionClosedError,
                     ConnectionResetError,
@@ -451,7 +458,7 @@ class ScrapingDataFrame:
                     print(
                         "The connection was closed unexpectedly. Please try again later."
                     )
-                    attempt += 1
+                    attempt + 1
                     logger_download.exception(
                         f"Error fetching {url} (attempt {attempt}): {e}"
                     )
@@ -539,6 +546,5 @@ class ScrapingDataFrame:
                         )
                     )
                     continue
-        os.system("killall 'Chromium'")
         print(f"Session end .......o_o.........o_o.......o_o........")
         sleep(7)
