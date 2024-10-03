@@ -10,7 +10,10 @@ downloads/
 output*/
 # Logs
 logs
+*.csv
+*.xlsx
 *.log
+state.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
