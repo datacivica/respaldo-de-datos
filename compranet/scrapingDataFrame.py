@@ -159,9 +159,9 @@ class ScrapingDataFrame:
         sem,
         retries=10,
     ) -> None:
+        url = url.replace("hacienda", "funcionpublica")
         async with sem:
             await self.save_df(
-                # response=response,
                 url=url,
                 uuid=uuid,
                 i=i,
@@ -318,7 +318,25 @@ class ScrapingDataFrame:
                     df=df,
                     browser=browser,
                 )
-
+        except Exception:
+            if retry < 5:
+                await page.close()
+                logger_download.exception(
+                    f" retry {retry} timeout in launch_browser from {url}"
+                )
+                await self.launch_browser(
+                    url=url,
+                    uuid=uuid,
+                    p=p,
+                    listpaths=listpaths,
+                    downloads_path=downloads_path,
+                    df=df,
+                    retry=retry + 1,
+                    browser=browser,
+                )
+            else:
+                logger_download.error(f" abandoned after 5 retries {url}")
+                return
         except TimeoutError:
             if retry < 5:
                 await page.close()
@@ -406,7 +424,7 @@ class ScrapingDataFrame:
                         logger_download.exception(
                             f"Error fetching {url} (attempt {attempt}): {e}"
                         )
-                        sleep_time = 1800 * (2 ** (attempt - 1)) + random.uniform(
+                        sleep_time = 100 * (2 ** (attempt - 1)) + random.uniform(
                             0, 0.1
                         )
                         logger_download.info(
@@ -430,7 +448,7 @@ class ScrapingDataFrame:
                         logger_download.exception(
                             f"Error fetching {url} (attempt {attempt}): {e}"
                         )
-                        sleep_time = 1800 * (2 ** (attempt - 1)) + random.uniform(
+                        sleep_time = 100 * (2 ** (attempt - 1)) + random.uniform(
                             0, 0.1
                         )
                         logger_download.info(
@@ -462,7 +480,7 @@ class ScrapingDataFrame:
                     logger_download.exception(
                         f"Error fetching {url} (attempt {attempt}): {e}"
                     )
-                    sleep_time = 1800 * (2 ** (attempt - 1)) + random.uniform(0, 0.1)
+                    sleep_time = 100 * (2 ** (attempt - 1)) + random.uniform(0, 0.1)
                     logger_download.info(
                         f"Retrying {url} in {sleep_time:.2f} seconds..."
                     )
