@@ -159,9 +159,9 @@ class ScrapingDataFrame:
         sem,
         retries=10,
     ) -> None:
+        url = url.replace("hacienda", "funcionpublica")
         async with sem:
             await self.save_df(
-                # response=response,
                 url=url,
                 uuid=uuid,
                 i=i,
@@ -238,6 +238,7 @@ class ScrapingDataFrame:
                 has_text="2",
             )
             count = await button.count()
+            self.current_hour = datetime.now().hour
             if self.current_hour != 0:
                 logger.info(f"Successfully fetched content for {url}")
                 download_elements = await page.query_selector_all(
@@ -277,9 +278,7 @@ class ScrapingDataFrame:
                                 continue
 
                         except TimeoutError:
-                            logger_download.error(
-                                f" download file from {url}"
-                            )
+                            logger_download.error(f" download file from {url}")
                             await self.launch_browser(
                                 url=url,
                                 uuid=uuid,
@@ -318,7 +317,25 @@ class ScrapingDataFrame:
                     df=df,
                     browser=browser,
                 )
-
+        except Exception:
+            if retry < 5:
+                await page.close()
+                logger_download.exception(
+                    f" retry {retry} timeout in launch_browser from {url}"
+                )
+                await self.launch_browser(
+                    url=url,
+                    uuid=uuid,
+                    p=p,
+                    listpaths=listpaths,
+                    downloads_path=downloads_path,
+                    df=df,
+                    retry=retry + 1,
+                    browser=browser,
+                )
+            else:
+                logger_download.error(f" abandoned after 5 retries {url}")
+                return
         except TimeoutError:
             if retry < 5:
                 await page.close()
@@ -355,16 +372,35 @@ class ScrapingDataFrame:
                         browser = await p.firefox.launch(headless=True, timeout=10**6)
                     else:
                         browser = await p.chromium.launch(headless=True, timeout=10**6)
-
-                    return await self.launch_browser(
-                        url=url,
-                        uuid=uuid,
-                        p=p,
-                        listpaths=listpaths,
-                        downloads_path=downloads_path,
-                        df=df,
-                        browser=browser,
+                    self.current_hour = datetime.now().hour
+                    print(
+                        f"--------------------hour {self.current_hour}-------------------"
                     )
+                    if self.current_hour != 0:
+
+                        return await self.launch_browser(
+                            url=url,
+                            uuid=uuid,
+                            p=p,
+                            listpaths=listpaths,
+                            downloads_path=downloads_path,
+                            df=df,
+                            browser=browser,
+                        )
+                    else:
+                        logger.warning(f"Error server is closed waiting 1 hour {url}")
+                        await asyncio.sleep(3780)
+                        logger.info(f"Retrying {url}")
+                        return await self.launch_browser(
+                            url=url,
+                            uuid=uuid,
+                            p=p,
+                            listpaths=listpaths,
+                            downloads_path=downloads_path,
+                            df=df,
+                            browser=browser,
+                        )
+
                 except ProtocolError as e:
                     print(
                         "The server closed the connection unexpectedly. Please try again later."
@@ -406,7 +442,7 @@ class ScrapingDataFrame:
                         logger_download.exception(
                             f"Error fetching {url} (attempt {attempt}): {e}"
                         )
-                        sleep_time = 1800 * (2 ** (attempt - 1)) + random.uniform(
+                        sleep_time = 100 * (2 ** (attempt - 1)) + random.uniform(
                             0, 0.1
                         )
                         logger_download.info(
@@ -430,7 +466,7 @@ class ScrapingDataFrame:
                         logger_download.exception(
                             f"Error fetching {url} (attempt {attempt}): {e}"
                         )
-                        sleep_time = 1800 * (2 ** (attempt - 1)) + random.uniform(
+                        sleep_time = 100 * (2 ** (attempt - 1)) + random.uniform(
                             0, 0.1
                         )
                         logger_download.info(
@@ -462,7 +498,7 @@ class ScrapingDataFrame:
                     logger_download.exception(
                         f"Error fetching {url} (attempt {attempt}): {e}"
                     )
-                    sleep_time = 1800 * (2 ** (attempt - 1)) + random.uniform(0, 0.1)
+                    sleep_time = 100 * (2 ** (attempt - 1)) + random.uniform(0, 0.1)
                     logger_download.info(
                         f"Retrying {url} in {sleep_time:.2f} seconds..."
                     )
