@@ -238,6 +238,7 @@ class ScrapingDataFrame:
                 has_text="2",
             )
             count = await button.count()
+            self.current_hour = datetime.now().hour
             if self.current_hour != 0:
                 logger.info(f"Successfully fetched content for {url}")
                 download_elements = await page.query_selector_all(
@@ -277,9 +278,7 @@ class ScrapingDataFrame:
                                 continue
 
                         except TimeoutError:
-                            logger_download.error(
-                                f" download file from {url}"
-                            )
+                            logger_download.error(f" download file from {url}")
                             await self.launch_browser(
                                 url=url,
                                 uuid=uuid,
@@ -373,16 +372,35 @@ class ScrapingDataFrame:
                         browser = await p.firefox.launch(headless=True, timeout=10**6)
                     else:
                         browser = await p.chromium.launch(headless=True, timeout=10**6)
-
-                    return await self.launch_browser(
-                        url=url,
-                        uuid=uuid,
-                        p=p,
-                        listpaths=listpaths,
-                        downloads_path=downloads_path,
-                        df=df,
-                        browser=browser,
+                    self.current_hour = datetime.now().hour
+                    print(
+                        f"--------------------hour {self.current_hour}-------------------"
                     )
+                    if self.current_hour != 0:
+
+                        return await self.launch_browser(
+                            url=url,
+                            uuid=uuid,
+                            p=p,
+                            listpaths=listpaths,
+                            downloads_path=downloads_path,
+                            df=df,
+                            browser=browser,
+                        )
+                    else:
+                        logger.warning(f"Error server is closed waiting 1 hour {url}")
+                        await asyncio.sleep(3780)
+                        logger.info(f"Retrying {url}")
+                        return await self.launch_browser(
+                            url=url,
+                            uuid=uuid,
+                            p=p,
+                            listpaths=listpaths,
+                            downloads_path=downloads_path,
+                            df=df,
+                            browser=browser,
+                        )
+
                 except ProtocolError as e:
                     print(
                         "The server closed the connection unexpectedly. Please try again later."
