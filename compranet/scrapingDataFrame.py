@@ -138,14 +138,14 @@ class ScrapingDataFrame:
                 header=not os.path.exists(os.path.join("output", csv_file)),
                 index=False,
             )
-            file_path = os.path.join("output", f"{csv_file}.xlsx")
-            if not os.path.exists(file_path):
-                dfs.iloc[i : i + 1].to_excel(file_path, index=False, header=True)
-            else:
-                book = openpyxl.load_workbook(file_path)
-                sheet = book.active
-                sheet.append(dfs.iloc[i].tolist())
-                book.save(file_path)
+            # file_path = os.path.join("output", f"{csv_file}.xlsx")
+            # if not os.path.exists(file_path):
+            #     dfs.iloc[i : i + 1].to_excel(file_path, index=False, header=True)
+            # else:
+            #     book = openpyxl.load_workbook(file_path)
+            #     sheet = book.active
+            #     sheet.append(dfs.iloc[i].tolist())
+            #     book.save(file_path)
             return
 
     async def fetch_urls(
