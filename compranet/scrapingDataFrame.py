@@ -169,11 +169,11 @@ class ScrapingDataFrame:
                 csv_file=csv_file,
                 downloads_path=downloads_path,
             )
-            if os.path.exists(f"{downloads_path}/{uuid}"):
-                self.zip_folder(
-                    f"{downloads_path}/{uuid}", f"{downloads_path}/{uuid}.zip"
-                )
-                self.delete_folder(f"{downloads_path}/{uuid}")
+#            if os.path.exists(f"{downloads_path}/{uuid}"):
+#                self.zip_folder(
+#                    f"{downloads_path}/{uuid}", f"{downloads_path}/{uuid}.zip"
+#                )
+#                self.delete_folder(f"{downloads_path}/{uuid}")
             self.index += 1
             self.save_state()
             return
@@ -559,7 +559,11 @@ class ScrapingDataFrame:
                         self.downloads_path,
                     )
                 )
-
+                if os.path.exists(f"{downloads_path}/{uuid}"):
+                    self.zip_folder(
+                        f"{downloads_path}/{uuid}", f"{downloads_path}/{uuid}.zip"
+                    )
+                    self.delete_folder(f"{downloads_path}/{uuid}")
                 elapsed_time = time.time() - start_time
                 return print(f"Fetching took {elapsed_time:.2f} seconds")
             except ConnectionError as e:
