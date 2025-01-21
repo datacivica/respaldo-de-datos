@@ -1,0 +1,6 @@
+asyncio
+docopt
+nest-asyncio
+pandas
+playwright
+

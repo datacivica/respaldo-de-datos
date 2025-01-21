@@ -3,11 +3,14 @@
 # compiled output
 dist/
 venv/
+archivo_adjunto_sisai/
 build/
 !webapp/build/
 downloadstest/
 downloads/
 output*/
+# index state
+state_index_SISAI.json
 # Logs
 logs
 *.log
