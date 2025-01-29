@@ -40,7 +40,7 @@ El `<file_path>` es el path del archivo `jsonl`
 
 - cd pnt/sipot/requirements.txt
 
-Ejecuta
+### Ejecuta
 
 ```bash
 chmod +x setup.sh run.sh
@@ -49,7 +49,7 @@ chmod +x setup.sh run.sh
 
 ```
 
-Ejecuta de nuevo
+### Ejecuta de nuevo
 
 ```bash
 chmod +x setup.sh run.sh
@@ -58,4 +58,6 @@ chmod +x setup.sh run.sh
 
 ```
 
-El `<file_path>` es el path del archivo `jsonl`
+### Nota
+
+los credenciales en .env de postgresQL vamos a mandar privado
