@@ -16,7 +16,7 @@ Options:
     
 """
 
-from sisai.scrapingArchivosSISAI import ScrapingDataFrame
+from scrapingArchivosSISAI import ScrapingDataFrame
 from docopt import docopt
 
 

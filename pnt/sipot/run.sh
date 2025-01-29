@@ -1,0 +1,1 @@
+PLAYWRIGHT_BROWSERS_PATH=0 python3 gui2.py

@@ -35,3 +35,27 @@ $python3 pnt/solicitudes.py file_path
 ```
 
 El `<file_path>` es el path del archivo `jsonl`
+
+## Plataforma de transparencia / Obligacion
+
+- cd pnt/sipot/requirements.txt
+
+Ejecuta
+
+```bash
+chmod +x setup.sh run.sh
+
+./setup.sh
+
+```
+
+Ejecuta de nuevo
+
+```bash
+chmod +x setup.sh run.sh
+
+./run.sh
+
+```
+
+El `<file_path>` es el path del archivo `jsonl`
