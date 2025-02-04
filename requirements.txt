@@ -1,5 +1,4 @@
 aiofiles
-altgraph
 asyncio
 customtkinter 
 darkdetect 

@@ -38,14 +38,16 @@ El `<file_path>` es el path del archivo `jsonl`
 
 ## Plataforma de transparencia / Obligacion
 
-- cd pnt/sipot/requirements.txt
+- virtualenv venv
+- source venv/bin/activate
+- pip install -r pnt/sipot/requirements.txt
 
 ### Ejecuta
 
 ```bash
-chmod +x setup.sh run.sh
+chmod +x pnt/sipot/setup.sh pnt/sipot/run.sh
 
-./setup.sh
+./pnt/sipot/setup.sh
 
 ```
 
@@ -54,9 +56,13 @@ chmod +x setup.sh run.sh
 ```bash
 chmod +x setup.sh run.sh
 
-./run.sh
+./pnt/sipot/run.sh
 
 ```
+
+## usar el APP
+
+**necesitamos doc del proceso**
 
 ### Nota
 
