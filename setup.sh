@@ -54,4 +54,4 @@ echo "Virtual environment '$VENV_NAME' created and requirements installed succes
 PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium
 
 
-PLAYWRIGHT_BROWSERS_PATH=0 python3 gui.py
+PLAYWRIGHT_BROWSERS_PATH=0 python3 pnt/sipot/gui.py
