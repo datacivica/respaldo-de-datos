@@ -16,3 +16,5 @@ pyinstaller-hooks-contrib
 python-dotenv 
 watchdog 
 nest-asyncio
+plyer
+pyobjus

@@ -15,12 +15,14 @@ def main(args):
 
     scraping = ScrapingDataFramePnt(
         idSujetoObligado=args.idSujetoObligado,
+        nombreDelSujeto=args.nombreSujeto,
         endidad=args.idEntidadFederativa,
         ano=args.ano,
         index=args.startIndex,
         finalIndex=args.finalIndex,
         obligacion=args.idObligacion,
         colaboradora=args.colaboradora,
+        hashfileID=args.hashFileId,
     )
     scraping.main()
 
@@ -75,7 +77,12 @@ if __name__ == "__main__":
         {YELLOW}Ejemplo: 2024"""
         + RESET_COLOR,
     )
+    parser.add_argument("--nombreSujeto", type=str, help="Nombre de Sujeto")
+
     parser.add_argument("--colaboradora", type=str, help="Nombre de la colaboradora")
+    parser.add_argument(
+        "--hashFileId", type=str, required=True, help="hash file name SHA(256)"
+    )
 
     args = parser.parse_args()
     print(f"Running command")

@@ -30,7 +30,7 @@ create_table_query = """
             index_actual INTEGER,
             index_final INTEGER,
             data JSONB,
-            hash_key TEXT,
+            hash_key TEXT UNIQUE,
             fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """

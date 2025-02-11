@@ -16,6 +16,8 @@ from time import sleep
 import time
 import pandas as pd
 import asyncio
+
+from plyer import notification
 import db_pnt
 import nest_asyncio
 from playwright.async_api import async_playwright
@@ -59,12 +61,14 @@ class ScrapingDataFramePnt:
     def __init__(
         self,
         idSujetoObligado,
+        nombreDelSujeto,
         endidad,
         ano,
         obligacion,
         index,
         finalIndex,
         colaboradora,
+        hashfileID,
     ):
         self.finalIndex = None
         if finalIndex and finalIndex.isdigit():
@@ -72,7 +76,9 @@ class ScrapingDataFramePnt:
         self.total_pages = 100000 if self.finalIndex is None else self.finalIndex
         self.jsonData = ""
         self.idSujetoObligado = idSujetoObligado
+        self.nomberDelSujeto = nombreDelSujeto
         self.idObligcaionOptional = obligacion
+        self.hashfileID = hashfileID
         self.idObligcaion = list()
         if self.idObligcaionOptional:
             listObligacionOptional = self.idObligcaionOptional.split(",")
@@ -93,17 +99,21 @@ class ScrapingDataFramePnt:
         self.ano = ano
         self.colaboradora = colaboradora
 
+    def send_notification(self, title, message):
+        try:
+            notification.notify(title=title, message=message, timeout=5)
+        except NotImplementedError as e:
+            print(f"Error: {e}")
+
     # Function to generate SHA-256 hash
     def generate_hash(self, data):
-        encoded_data = data.encode("utf-8")
-        hash_object = hashlib.sha256()
-        hash_object.update(encoded_data)
-        hash_hex = hash_object.hexdigest()
-        return hash_hex
+        sha256 = hashlib.sha256()
+        sha256.update(data.encode("utf-8"))
+        return sha256.hexdigest()
 
     def load_state(self) -> int:
         try:
-            path_file = f"{self.idSujetoObligado}_state.json"
+            path_file = f"{self.hashfileID}_state.json"
             with open(path_file, "r") as f:
                 state = json.load(f)
                 return state["index"]
@@ -113,15 +123,22 @@ class ScrapingDataFramePnt:
     #  save index page
     def save_state(self) -> int:
         state = {"index": self.index}
-        path_file = f"{self.idSujetoObligado}_state.json"
+        path_file = f"{self.hashfileID}_state.json"
+        with open(path_file, "w") as f:
+            json.dump(state, f)
+
+    def save_state_Progress(self) -> int:
+        state = {"index": self.index, "final_index": self.total_pages}
+        path_file = f"progress.json"
         with open(path_file, "w") as f:
             json.dump(state, f)
 
     #  create json file from response
     async def create_json(self, res):
-        if not os.path.exists(f"output_PNT_SIPOT/{self.idSujetoObligado}"):
-            os.mkdir(f"output_PNT_SIPOT/{self.idSujetoObligado}")
-            os.mkdir(f"output_PNT_SIPOT/{self.idSujetoObligado}/{self.ano}")
+        if not os.path.exists(f"output_PNT_SIPOT/{self.nomberDelSujeto}"):
+            os.mkdir(f"output_PNT_SIPOT/{self.nomberDelSujeto}")
+            os.mkdir(f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}")
+
         if (
             f"https://backbuscadorinteligente.plataformadetransparencia.org.mx/api/buscadorinteligente/buscador/consulta"
             in res.url
@@ -148,6 +165,10 @@ class ScrapingDataFramePnt:
                         else self.finalIndex
                     )
                     if self.index > json_data["paylod"]["paginador"]["numeroPaginas"]:
+                        self.send_notification(
+                            title="Terminaste descargar",
+                            message=f"felicidades terminaste descargar obligaciones del sujeto {self.nomberDelSujeto} elige otros opiciones en el app para empezar de nuevo ",
+                        )
                         sys.exit(
                             """
                             termiaste la descarga para este sujeto obligado y para este obligacion 
@@ -155,30 +176,33 @@ class ScrapingDataFramePnt:
                             connecta con el groupo de resplado ticnico para mas informacion
                             """
                         )
+
                 if not os.path.exists(
-                    f"output_PNT_SIPOT/{self.idSujetoObligado}/{self.ano}/{obligacionesTransparencia.replace(' ', '_') }"
+                    f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia"
                 ):
                     os.mkdir(
-                        f"output_PNT_SIPOT/{self.idSujetoObligado}/{self.ano}/{obligacionesTransparencia.replace(' ', '_') }"
+                        f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia"
                     )
-                filename = f"output_PNT_SIPOT/{self.idSujetoObligado}/{self.ano}/{obligacionesTransparencia.replace(' ', '_')}/{self.idSujetoNombre.replace(' ', '_')}_{self.index}_.json"
+                if not os.path.exists(
+                    f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia/{self.hashfileID}"
+                ):
+                    os.mkdir(
+                        f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia/{self.hashfileID}"
+                    )
+
+                filename = f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia/{self.hashfileID}/{self.idSujetoNombre.replace(' ', '_')}_{self.index}_.json"
                 json_str = json.dumps(json_data)
                 json_to_hash = json_data["paylod"]["resultado"]["informacion"]
+                hash_key = self.generate_hash(f"{json_to_hash}")
                 select_query = f"""
                     SELECT hash_key
                     FROM progresos_respaldo
-                    WHERE identificador_sujetosobligados = '{self.idSujetoObligado}' AND index_actual = {self.index};
+                    WHERE hash_key = '{hash_key}';
                     """
-                hash_key = self.generate_hash(f"{json_to_hash}")
                 if hash_key == db_pnt.select_db(select_query):
-                    sys.exit(
-                        """
-                            estos datos ya estan en la base de datos no se guardaran
-                            revisa la google sheet para mas informacion 
-                            o 
-                            connecta con el groupo de resplado ticnico para mas informacion
-                             
-                        """
+                    self.send_notification(
+                        title="Advertencia",
+                        message="estos datos ya estan en la base de datos no se guardaran, solo guardan local",
                     )
                     return
                 else:
@@ -201,10 +225,10 @@ class ScrapingDataFramePnt:
                         )
                         db_pnt.insert_db(data_to_insert)
 
-                    self.index += 1
+                        self.index += 1
 
                 self.jsonData = f"{json_data}"
-
+                self.save_state_Progress()
                 self.save_state()
                 return self.jsonData
 
@@ -238,9 +262,8 @@ class ScrapingDataFramePnt:
         console.error('Error:', error);
         }});"""
 
-    async def makeAjax(self, page):
-
-        for self.index in range(self.index, self.total_pages):
+    async def makeFetch(self, page):
+        for self.index in range(self.index, self.total_pages, 1):
             payload = {
                 "contenido": "20*",
                 "idCompartido": "",
@@ -312,9 +335,9 @@ class ScrapingDataFramePnt:
                 "anioSolicitud": {"seleccion": [], "descartado": []},
                 "tipoRespuesta": {"seleccion": [], "descartado": []},
             }
-            baby_ajax = self.generate_json_js_code(payload=payload)
+            baby_Fetch = self.generate_json_js_code(payload=payload)
             await page.wait_for_timeout(500)
-            await page.evaluate(baby_ajax)
+            await page.evaluate(baby_Fetch)
             await page.wait_for_load_state("networkidle", timeout=60**3)
             await page.wait_for_timeout(700)
             logger_PNT.info(
@@ -325,7 +348,7 @@ class ScrapingDataFramePnt:
             )
             sys.stdout.flush()
 
-    async def launch_Ajax_requests(
+    async def launch_Fetch_requests(
         self,
         url,
         page,
@@ -333,20 +356,31 @@ class ScrapingDataFramePnt:
 
         try:
             sleep(1)
-            await self.makeAjax(page=page)
+            await self.makeFetch(page=page)
             await page.pause()
         except TimeoutError:
 
             logger_PNT.error(f"retry {self.index}")
 
             await page.wait_for_timeout(5000)
-            await self.launch_Ajax_requests(url=url, page=page)
+            await self.launch_Fetch_requests(url=url, page=page)
         except Exception:
-            logger_PNT.error(
-                f" retry {self.index} ---Exception Error Page.evaluate makeAjax()"
+            self.send_notification(
+                title="advertencia",
+                message=f"hay problema en servidor de PNT pagina {self.index} re intanto de nuevo ",
+            )
+            logger_PNT.warning(
+                f" retry {self.index} ---Exception Error Page.evaluate makeFetch()"
             )
             await page.wait_for_timeout(5000)
-            await self.launch_Ajax_requests(url=url, page=page)
+            await self.launch_Fetch_requests(url=url, page=page)
+
+    async def handle_load(self):
+        print("Page has reloaded!")
+        if self.index > 1:
+            self.index -= 2
+
+            self.save_state()
 
     # Function for starting the browser
     async def launch_browser(self, url) -> pd.DataFrame:
@@ -366,24 +400,25 @@ class ScrapingDataFramePnt:
                     datajson = await self.create_json(res=res)
                     return datajson
 
+                page.on("load", await self.handle_load())
                 page.on(
                     "response",
                     lambda res: asyncio.ensure_future(handle_response(res=res)),
                 )
                 await page.goto(url, timeout=0, wait_until="load")
-                await page.wait_for_timeout(3500)
-                return await self.launch_Ajax_requests(
+                page.wait_for_timeout(3500)
+                return await self.launch_Fetch_requests(
                     url=url,
                     page=page,
                 )
 
             except PlaywrightError:
+                self.send_notification(
+                    title="PlaywrightError",
+                    message="La pestaña o navegador web se cerró",
+                )
                 logger_PNT.error(
                     f" stop {self.index} ---PlaywrightError Error page was closed"
-                )
-                return self.launch_Ajax_requests(
-                    url=url,
-                    page=page,
                 )
 
     def main(self) -> None:
@@ -409,6 +444,10 @@ class ScrapingDataFramePnt:
                 print(
                     "Unable to connect to the internet. Please check your network connection."
                 )
+                self.send_notification(
+                    title="ERR_INTERNET_DISCONNECTED",
+                    message="Unable to connect to the internet. Please check your network connection.",
+                )
                 attempt += 1
                 logger_PNT.warning(f"Error (attempt {attempt}): {e}")
                 sleep_time = 720 * (2 ** (attempt - 1)) + random.uniform(0, 0.1)
@@ -419,5 +458,10 @@ class ScrapingDataFramePnt:
                         url="https://buscador.plataformadetransparencia.org.mx/buscador/temas"
                     )
                 )
+
         print(f"Session end .......o_o.........o_o.......o_o........")
+        self.send_notification(
+            title="Terminaste descargar",
+            message="felicidades terminaste descargar este sesion elige otros opiciones en el app para empezar de nuevo",
+        )
         sleep(7)
