@@ -84,7 +84,7 @@ class ProgressBar(ctk.CTkFrame):
         )
         self.progress_bar.grid(row=0, column=0, padx=20, pady=10, sticky="ew")
 
-        self.progress_label = ctk.CTkLabel(self, text="Progress: 0%")
+        self.progress_label = ctk.CTkLabel(self, text="Progreso: 0%")
         self.progress_label.grid(row=1, column=0, pady=5)
 
         # Start the progress update thread
@@ -139,6 +139,7 @@ class SelectDropdown(ctk.CTkFrame):
             command=self.on_item_selected,
         )
         self.dropdown.grid(row=0, column=0, padx=0, pady=0, sticky="ew")
+        self.dropdown.focus_set()
 
     def on_item_selected(self, choice):
         global organosGarantes, sujetoObligadoID, pattern, dfSujetoObligaciones, sujeto_list, idOrganosGarantes
@@ -181,11 +182,13 @@ class MultiSelectDropdown(ctk.CTkFrame):
             hover_color="#3caa56",
         )
         self.dropdown_button.grid(
-            row=0, column=0, columnspan=3, padx=0, pady=0, sticky="nsew"
+            row=0, column=0, columnspan=1, padx=0, pady=0, sticky="nsew"
         )
 
-        self.scrollable_frame = ctk.CTkScrollableFrame(self, width=400, height=300)
-        self.scrollable_frame.grid(row=1, column=0, padx=20, pady=5, sticky="nsew")
+        self.scrollable_frame = ctk.CTkScrollableFrame(
+            self, width=300, height=300, label_anchor="w"
+        )
+        self.scrollable_frame.grid(row=1, column=0, padx=20, pady=5, sticky="ns")
         self.scrollable_frame.grid_remove()  # Hide initially
 
         self.checkboxes = []
@@ -266,7 +269,7 @@ def run_script():
             dfSujetoObligaciones["nombreGrupo"] == sujeto.get()
         ]
         sujetoObligadoID = filtered_df["identificadorGrupo"].to_string(index=False)
-        stringtohash = f"sujetoObligadoID".join(obligaciones)
+        stringtohash = f"{sujetoObligadoID}".join(obligaciones)
         hashsesion = create_hash(stringtohash)
         send_notification(
             title=":(🫶):",
@@ -552,7 +555,7 @@ app = ctk.CTk()
 app.title("Respaldo de Obligaciones PNT")
 
 
-center_window(app, 800, 900)
+center_window(app, 1300, 750)
 logo_path = os.path.join(bundle_dir, "logo.png")
 image = ctk.CTkImage(Image.open(logo_path), size=(50, 50))
 image_label = ctk.CTkLabel(app, image=image, text="")
@@ -637,10 +640,12 @@ resume_button = ctk.CTkButton(
 resume_button.grid(row=10, column=1, padx=50, pady=20, sticky="nsew")
 
 progress_bar = ProgressBar(app, json_file_path="progress.json")
-progress_bar.grid(row=11, column=0, columnspan=2, pady=20, sticky="nsew")
+progress_bar.grid(row=11, column=0, columnspan=4, pady=20, sticky="nsew")
 
-output_text = ctk.CTkTextbox(app, width=500, height=100)
-output_text.grid(row=12, column=0, columnspan=2, padx=50, pady=15, sticky="nsew")
+output_text = ctk.CTkTextbox(app, width=500, height=400)
+output_text.grid(
+    row=0, column=2, rowspan=12, columnspan=3, padx=50, pady=15, sticky="ew"
+)
 
 
 app.protocol("WM_DELETE_WINDOW", on_closing)
@@ -654,7 +659,7 @@ observer.schedule(event_handler, path=".", recursive=False)
 observer.start()
 app.after(100, update_gui)
 app.grid_columnconfigure(0, weight=1)
-app.grid_columnconfigure(1, weight=1)
+app.grid_columnconfigure(4, weight=1)
 app.mainloop()
 
 observer.stop()

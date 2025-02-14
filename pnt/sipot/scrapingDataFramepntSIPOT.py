@@ -228,8 +228,9 @@ class ScrapingDataFramePnt:
                         self.index += 1
 
                 self.jsonData = f"{json_data}"
-                self.save_state_Progress()
-                self.save_state()
+                if self.index <= self.total_pages:
+                    self.save_state_Progress()
+                    self.save_state()
                 return self.jsonData
 
     #  generate json for Convert Python booleans to JavaScript booleans
@@ -263,7 +264,7 @@ class ScrapingDataFramePnt:
         }});"""
 
     async def makeFetch(self, page):
-        for self.index in range(self.index, self.total_pages, 1):
+        for _ in range(self.index, self.total_pages, 1):
             payload = {
                 "contenido": "20*",
                 "idCompartido": "",
