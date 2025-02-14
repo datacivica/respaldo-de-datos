@@ -157,7 +157,7 @@ class SelectDropdown(ctk.CTkFrame):
                     pattern, regex=True, na=False
                 )
             ]
-            sujeto_list = filtered_sujeto_df["nombreGrupo"].tolist()
+            sujeto_list = filtered_sujeto_df["nombreGrupo"].sort_values().tolist()
             self.sujeto_dropdown.configure(
                 values=sujeto_list
             )  # Update the sujeto dropdown
