@@ -8,12 +8,17 @@ load_dotenv()
 
 # Database connection parameters from environment variables
 db_params = {
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT"),
+    "dbname": os.getenv("DB_NAME", "default_dbname"),
+    "user": os.getenv("DB_USER", "default_user"),
+    "password": os.getenv("DB_PASSWORD", "default_password"),
+    "host": os.getenv("DB_HOST", "default_host"),
+    "port": os.getenv("DB_PORT", "default_port"),
 }
+
+# Ensure all required environment variables are set
+for key, value in db_params.items():
+    if value is None:
+        raise ValueError(f"Environment variable for {key} is not set.")
 
 # SQL statement to create the table
 
@@ -22,13 +27,10 @@ create_table_query = """
             id SERIAL PRIMARY KEY,
             colaboradora VARCHAR(150),
             identificador_sujetosObligados VARCHAR(255),
-            sujetosObligado VARCHAR(255),
-            identificador_organosGarantes VARCHAR(255),
-            organosGarantes VARCHAR(255),
-            identificador_obligacionesTransparencia VARCHAR(255),
-            obligacionesTransparencia VARCHAR(255),
+            sujetosObligado VARCHAR(600),
+            identificador_obligacionesTransparencia TEXT,
+            obligacionesTransparencia TEXT,
             index_actual INTEGER,
-            index_final INTEGER,
             data JSONB,
             hash_key TEXT UNIQUE,
             fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -40,7 +42,13 @@ create_table_query = """
 def create_db():
 
     try:
-        conn = psycopg2.connect(**db_params)
+        conn = psycopg2.connect(
+            dbname=db_params["dbname"],
+            user=db_params["user"],
+            password=db_params["password"],
+            host=db_params["host"],
+            port=db_params["port"],
+        )
         cursor = conn.cursor()
 
         cursor.execute(create_table_query)
@@ -58,21 +66,25 @@ def create_db():
 # Insert data into the table
 def insert_db(data_to_insert):
     try:
-        conn = psycopg2.connect(**db_params)
+        conn = psycopg2.connect(
+            dbname=db_params["dbname"],
+            user=db_params["user"],
+            password=db_params["password"],
+            host=db_params["host"],
+            port=db_params["port"],
+        )
         cursor = conn.cursor()
 
         insert_query = sql.SQL(
-            """INSERT INTO progresos_respaldo (colaboradora,
+            """INSERT INTO progresos_respaldo (
+            colaboradora,
             identificador_sujetosObligados,
             sujetosObligado,
-            identificador_organosGarantes,
-            organosGarantes,
             identificador_obligacionesTransparencia,         
             obligacionesTransparencia,
             index_actual,
-            index_final,
             data,
-            hash_key ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+            hash_key ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
         )
 
         cursor.execute(insert_query, data_to_insert)
@@ -89,7 +101,13 @@ def insert_db(data_to_insert):
 def select_db(select_query):
     hash_key_value = None
     try:
-        conn = psycopg2.connect(**db_params)
+        conn = psycopg2.connect(
+            dbname=db_params["dbname"],
+            user=db_params["user"],
+            password=db_params["password"],
+            host=db_params["host"],
+            port=db_params["port"],
+        )
         cursor = conn.cursor()
 
         cursor.execute(select_query)

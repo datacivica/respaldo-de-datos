@@ -14,15 +14,13 @@ def main(args):
     #######################################################
 
     scraping = ScrapingDataFramePnt(
-        idSujetoObligado=args.idSujetoObligado,
-        nombreDelSujeto=args.nombreSujeto,
-        endidad=args.idEntidadFederativa,
-        ano=args.ano,
-        index=args.startIndex,
-        finalIndex=args.finalIndex,
+        id_sujeto_obligado=args.idSujetoObligado,
+        nombre_del_sujeto=args.nombreSujeto,
+        ano_de_empezar=args.ano_de_empezar,
+        ano_de_terminal=args.ano_de_terminal,
         obligacion=args.idObligacion,
         colaboradora=args.colaboradora,
-        hashfileID=args.hashFileId,
+        hash_file_id=args.hashFileId,
     )
     scraping.main()
 
@@ -32,16 +30,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--idSujetoObligado",
         required=True,
+        type=str,
         help=f"""ID de hash de sujeto obligatorio, por favor revise los filtros antes de continuar\n 
         {YELLOW}Ejemplo: Ej0QcqjZqYSP04SKbKxVCw== es la Secretaria de Salud - (CDMX)"""
-        + RESET_COLOR,
-    )
-    parser.add_argument(
-        "--idEntidadFederativa",
-        required=True,
-        # type=str,
-        help=f"""ID de hash de Entidad Federativa, por favor revise los filtros antes de continuar\n
-        {YELLOW}Ejemplo: LBP8NmL5Gofq6T_pb6W9nw== es Aguascalientes"""
         + RESET_COLOR,
     )
     parser.add_argument(
@@ -53,7 +44,7 @@ if __name__ == "__main__":
         + RESET_COLOR,
     )
     parser.add_argument(
-        "--ano",
+        "--ano_de_empezar",
         required=True,
         # type=int,
         help=f"""Es un numero de cuatro digitos\n
@@ -61,23 +52,15 @@ if __name__ == "__main__":
         + RESET_COLOR,
     )
     parser.add_argument(
-        "--startIndex",
+        "--ano_de_terminal",
         required=False,
         # type=int,
         help=f"""Es un numero de index de empesar\n
         {YELLOW}Ejemplo: 2024"""
         + RESET_COLOR,
     )
-    parser.add_argument(
-        "--finalIndex",
-        required=False,
-        default=None,
-        # type=int,
-        help=f"""Es un numero de index de final\n
-        {YELLOW}Ejemplo: 2024"""
-        + RESET_COLOR,
-    )
-    parser.add_argument("--nombreSujeto", type=str, help="Nombre de Sujeto")
+
+    parser.add_argument("--nombreSujeto", type=list, help="Nombre de Sujeto")
 
     parser.add_argument("--colaboradora", type=str, help="Nombre de la colaboradora")
     parser.add_argument(

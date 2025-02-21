@@ -5,28 +5,28 @@
 #######################################################
 #######################################################
 
+import asyncio
+
 # from datetime import datetime
 import hashlib
 import json
 import logging
+import os
+import random
 
 # import subprocess
 import sys
-from time import sleep
 import time
-import pandas as pd
-import asyncio
+from time import sleep
 
-from plyer import notification
+import aiofiles as aiof
 import db_pnt
 import nest_asyncio
-from playwright.async_api import async_playwright
-import os
-import random
+import pandas as pd
 from playwright._impl._errors import Error as PlaywrightError
 from playwright._impl._errors import TimeoutError
-from playwright._impl._errors import Error as PlaywrightError
-import aiofiles as aiof
+from playwright.async_api import async_playwright
+from plyer import notification
 
 # import psycopg2
 # from psycopg2 import sql
@@ -54,90 +54,79 @@ logger_PNT.addHandler(file_download_handler)
 #######################################################
 #######################################################
 nest_asyncio.apply()
-listObligacion = list()
+listObligacion = []
 
 
 class ScrapingDataFramePnt:
     def __init__(
         self,
-        idSujetoObligado,
-        nombreDelSujeto,
-        endidad,
-        ano,
+        id_sujeto_obligado,
+        nombre_del_sujeto,
+        ano_de_empezar,
+        ano_de_terminal,
         obligacion,
-        index,
-        finalIndex,
         colaboradora,
-        hashfileID,
+        hash_file_id,
     ):
-        self.finalIndex = None
-        if finalIndex and finalIndex.isdigit():
-            self.finalIndex = int(finalIndex)
-        self.total_pages = 100000 if self.finalIndex is None else self.finalIndex
-        self.jsonData = ""
-        self.idSujetoObligado = idSujetoObligado
-        self.nomberDelSujeto = nombreDelSujeto
-        self.idObligcaionOptional = obligacion
-        self.hashfileID = hashfileID
-        self.idObligcaion = list()
-        if self.idObligcaionOptional:
-            listObligacionOptional = self.idObligcaionOptional.split(",")
-            # if type(listObligacionOptional) == list:
-            #     for Obliga in listObligacionOptional:
-            #         self.idObligcaion.extend(Obliga)
-            self.idObligcaion.extend(listObligacionOptional)
+        self.total_pages = 100000
+        self.json_data = ""
+        self.id_sujeto_obligado = id_sujeto_obligado.split(",")
+        self.nombre_del_sujeto = nombre_del_sujeto
+        self.id_obligacion_optional = obligacion
+        self.hash_file_id = hash_file_id
+        self.id_obligacion = []
+        if self.id_obligacion_optional:
+            list_obligacion_optional = self.id_obligacion_optional.split(",")
+            self.id_obligacion.extend(list_obligacion_optional)
         else:
-            self.idObligcaion = []
+            self.id_obligacion = []
 
         self.index = self.load_state()
-        if index and index.isdigit():
-            index = int(index)
-            if index > self.index:
-                self.index = index
         self.search_size = 100
-        self.endidad = endidad
-        self.ano = ano
+        self.ano_de_empezar = ano_de_empezar
+        self.ano_de_terminal = ano_de_terminal
         self.colaboradora = colaboradora
 
     def send_notification(self, title, message):
+        """Function to make notification"""
         try:
-            notification.notify(title=title, message=message, timeout=5)
+            if notification.notify:
+                notification.notify(title=title, message=message, timeout=5)
         except NotImplementedError as e:
             print(f"Error: {e}")
 
-    # Function to generate SHA-256 hash
     def generate_hash(self, data):
+        """Function to generate SHA-256 hash"""
         sha256 = hashlib.sha256()
         sha256.update(data.encode("utf-8"))
         return sha256.hexdigest()
 
     def load_state(self) -> int:
+        """Load Index state from .json file"""
         try:
-            path_file = f"{self.hashfileID}_state.json"
-            with open(path_file, "r") as f:
+            path_file = f"{self.hash_file_id}_state.json"
+            with open(path_file, "r", encoding="utf-8") as f:
                 state = json.load(f)
                 return state["index"]
         except FileNotFoundError:
             return 0
 
-    #  save index page
-    def save_state(self) -> int:
+    def save_state(self):
+        """Save index state for the progress"""
         state = {"index": self.index}
-        path_file = f"{self.hashfileID}_state.json"
-        with open(path_file, "w") as f:
+        path_file = f"{self.hash_file_id}_state.json"
+        with open(path_file, "w", encoding="utf-8") as f:
             json.dump(state, f)
 
-    def save_state_Progress(self) -> int:
+    def save_state_progress(self):
+        """Save"""
         state = {"index": self.index, "final_index": self.total_pages}
-        path_file = f"progress.json"
-        with open(path_file, "w") as f:
+        path_file = "progress.json"
+        with open(path_file, "w", encoding="utf-8") as f:
             json.dump(state, f)
 
     #  create json file from response
     async def create_json(self, res):
-        if not os.path.exists(f"output_PNT_SIPOT/{self.nomberDelSujeto}"):
-            os.mkdir(f"output_PNT_SIPOT/{self.nomberDelSujeto}")
-            os.mkdir(f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}")
 
         if (
             f"https://backbuscadorinteligente.plataformadetransparencia.org.mx/api/buscadorinteligente/buscador/consulta"
@@ -146,92 +135,76 @@ class ScrapingDataFramePnt:
             if "consultaTotal" not in res.url:
                 json_data = await res.json()
                 if json_data is not None:
-                    self.idSujetoNombre = json_data["paylod"][
+                    self.nombre_del_sujeto = json_data["paylod"][
                         "sujetosObligadosSeleccionados"
-                    ][0]["nombreGrupo"]
-                    organosGarantes = json_data["paylod"][
-                        "organosGarantesSeleccionados"
                     ][0]["nombreGrupo"]
                     obligacionesTransparencia = json_data["paylod"][
                         "obligacionesTransparenciaSeleccionados"
-                    ][0]["nombreGrupo"]
+                    ]
+                    obligacionesTransparencia_list = [
+                        item["nombreGrupo"] for item in obligacionesTransparencia
+                    ]
                     total_page_from_json = json_data["paylod"]["paginador"][
                         "numeroPaginas"
                     ]
                     self.total_pages = (
-                        total_page_from_json
-                        if self.finalIndex is None
-                        or total_page_from_json < self.finalIndex
-                        else self.finalIndex
+                        int(total_page_from_json) if total_page_from_json else 0
                     )
-                    if self.index > json_data["paylod"]["paginador"]["numeroPaginas"]:
+                    if not os.path.exists(f"output_PNT_SIPOT/{self.nombre_del_sujeto}"):
+                        os.mkdir(f"output_PNT_SIPOT/{self.nombre_del_sujeto}")
+                        os.mkdir(
+                            f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}"
+                        )
+
+                    if not os.path.exists(
+                        f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia"
+                    ):
+                        os.mkdir(
+                            f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia"
+                        )
+                    if not os.path.exists(
+                        f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia/{self.hash_file_id}"
+                    ):
+                        os.mkdir(
+                            f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia/{self.hash_file_id}"
+                        )
+
+                    filename = f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia/{self.hash_file_id}/{self.nombre_del_sujeto.replace(' ', '_')}_{self.index}_.json"
+                    json_str = json.dumps(json_data)
+                    json_to_hash = json_data["paylod"]["resultado"]["informacion"]
+                    hash_key = self.generate_hash(f"{json_to_hash}")
+                    select_query = f"""
+                        SELECT hash_key
+                        FROM progresos_respaldo
+                        WHERE hash_key = '{hash_key}';
+                        """
+                    if hash_key == db_pnt.select_db(select_query):
                         self.send_notification(
-                            title="Terminaste descargar",
-                            message=f"felicidades terminaste descargar obligaciones del sujeto {self.nomberDelSujeto} elige otros opiciones en el app para empezar de nuevo ",
+                            title="Advertencia",
+                            message="estos datos ya estan en la base de datos no se guardaran, solo guardan local",
                         )
-                        sys.exit(
-                            """
-                            termiaste la descarga para este sujeto obligado y para este obligacion 
-                            por favor cambia el index si estan descargando mismas obligacion o 
-                            connecta con el groupo de resplado ticnico para mas informacion
-                            """
-                        )
+                        return
+                    else:
 
-                if not os.path.exists(
-                    f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia"
-                ):
-                    os.mkdir(
-                        f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia"
-                    )
-                if not os.path.exists(
-                    f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia/{self.hashfileID}"
-                ):
-                    os.mkdir(
-                        f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia/{self.hashfileID}"
-                    )
+                        async with aiof.open(filename, "w") as out:
+                            await out.write(json_str)
+                            await out.flush()
+                            await out.close()
+                            data_to_insert = (
+                                self.colaboradora,
+                                self.id_sujeto_obligado,
+                                self.nombre_del_sujeto,
+                                self.id_obligacion,
+                                "|".join(obligacionesTransparencia_list),
+                                self.index,
+                                json_str,
+                                hash_key,
+                            )
+                            db_pnt.insert_db(data_to_insert)
 
-                filename = f"output_PNT_SIPOT/{self.nomberDelSujeto}/{self.ano}/obligaciones_de_transparencia/{self.hashfileID}/{self.idSujetoNombre.replace(' ', '_')}_{self.index}_.json"
-                json_str = json.dumps(json_data)
-                json_to_hash = json_data["paylod"]["resultado"]["informacion"]
-                hash_key = self.generate_hash(f"{json_to_hash}")
-                select_query = f"""
-                    SELECT hash_key
-                    FROM progresos_respaldo
-                    WHERE hash_key = '{hash_key}';
-                    """
-                if hash_key == db_pnt.select_db(select_query):
-                    self.send_notification(
-                        title="Advertencia",
-                        message="estos datos ya estan en la base de datos no se guardaran, solo guardan local",
-                    )
-                    return
-                else:
+                    self.json_data = f"{json_data}"
 
-                    async with aiof.open(filename, "w") as out:
-                        await out.write(json_str)
-                        await out.flush()
-                        data_to_insert = (
-                            self.colaboradora,
-                            self.idSujetoObligado,
-                            self.idSujetoNombre,
-                            self.endidad,
-                            organosGarantes,
-                            self.idObligcaion,
-                            obligacionesTransparencia,
-                            self.index,
-                            self.total_pages,
-                            json_str,
-                            hash_key,
-                        )
-                        db_pnt.insert_db(data_to_insert)
-
-                        self.index += 1
-
-                self.jsonData = f"{json_data}"
-                if self.index <= self.total_pages:
-                    self.save_state_Progress()
-                    self.save_state()
-                return self.jsonData
+                return self.json_data
 
     #  generate json for Convert Python booleans to JavaScript booleans
     def generate_json_js_code(self, payload):
@@ -264,101 +237,111 @@ class ScrapingDataFramePnt:
         }});"""
 
     async def makeFetch(self, page):
-        for _ in range(self.index, self.total_pages, 1):
-            payload = {
-                "contenido": "20*",
-                "idCompartido": "",
-                "comboEncabezado": False,
-                "numeroPagina": self.index,
-                "temas": {"seleccion": [], "descartado": []},
-                "cantidad": self.search_size,
-                "dePaginador": True,
-                "folio": "",
-                "expediente": "",
-                "detalleBusqueda": "",
-                "filtroSeleccionado": "",
-                "tipoOrdenamiento": 1,
-                "coleccion": "SIPOT",
-                "sujetosObligados": {
-                    "seleccion": [self.idSujetoObligado],
-                    "descartado": [],
-                },
-                "organosGarantes": {
-                    "seleccion": [self.endidad],
-                    "descartado": [],
-                },
-                "subtemas": {"seleccion": [], "descartado": []},
-                "fechaResolucion": {
-                    "fechaInicial": "",
-                    "fechaFinal": "",
-                    "cantidad": 0,
-                },
-                "fechaResolucionSeleccionado": {
-                    "fechaInicial": "",
-                    "fechaFinal": "",
-                    "cantidad": 0,
-                },
-                "fechaRecepcion": {
-                    "fechaInicial": "",
-                    "fechaFinal": "",
-                    "cantidad": 0,
-                },
-                "fechaRecepcionSeleccionado": {"seleccion": [], "descartado": []},
-                "fechaInicio": {
-                    "fechaInicial": f"01/01/{self.ano} 00:00",
-                    "fechaFinal": f"31/12/{self.ano} 00:00",
-                },
-                "fechaInicioSeleccionado": {
-                    "fechaInicial": "",
-                    "fechaFinal": "",
-                    "cantidad": 0,
-                },
-                "fechaInterposicion": {
-                    "fechaInicial": "",
-                    "fechaFinal": "",
-                    "cantidad": 0,
-                },
-                "fechaInterposicionSeleccionado": {
-                    "fechaInicial": "",
-                    "fechaFinal": "",
-                    "cantidad": 0,
-                },
-                "anioQueja": {"seleccion": [], "descartado": []},
-                "sentidoResolucion": {"seleccion": [], "descartado": []},
-                "obligacionesTransparencia": {
-                    "seleccion": self.idObligcaion,
-                    "descartado": [],
-                },
-                "obligacionesTransparenciaLocales": {
-                    "seleccion": [],
-                    "descartado": [],
-                },
-                "anioSolicitud": {"seleccion": [], "descartado": []},
-                "tipoRespuesta": {"seleccion": [], "descartado": []},
-            }
-            baby_Fetch = self.generate_json_js_code(payload=payload)
-            await page.wait_for_timeout(500)
-            await page.evaluate(baby_Fetch)
-            await page.wait_for_load_state("networkidle", timeout=60**3)
-            await page.wait_for_timeout(700)
-            logger_PNT.info(
-                f"desgargar JSON for {self.idSujetoNombre}\n index: {self.index} faltan: {self.total_pages - self.index}"
-            )
-            print(
-                f"desgargar JSON for {self.idSujetoNombre} index: {self.index} faltan: {self.total_pages - self.index}"
-            )
-            sys.stdout.flush()
+        global sujetoUniqo
+        for sujeto in self.id_sujeto_obligado:
+            while self.index <= self.total_pages:
+                payload = {
+                    "contenido": "20*",
+                    "idCompartido": "",
+                    "comboEncabezado": False,
+                    "numeroPagina": self.index,
+                    "temas": {"seleccion": [], "descartado": []},
+                    "cantidad": self.search_size,
+                    "dePaginador": True,
+                    "folio": "",
+                    "expediente": "",
+                    "detalleBusqueda": "",
+                    "filtroSeleccionado": "",
+                    "tipoOrdenamiento": 1,
+                    "coleccion": "SIPOT",
+                    "sujetosObligados": {
+                        "seleccion": [sujeto],
+                        "descartado": [],
+                    },
+                    "organosGarantes": {
+                        "seleccion": [],
+                        "descartado": [],
+                    },
+                    "subtemas": {"seleccion": [], "descartado": []},
+                    "fechaResolucion": {
+                        "fechaInicial": "",
+                        "fechaFinal": "",
+                        "cantidad": 0,
+                    },
+                    "fechaResolucionSeleccionado": {
+                        "fechaInicial": "",
+                        "fechaFinal": "",
+                        "cantidad": 0,
+                    },
+                    "fechaRecepcion": {
+                        "fechaInicial": "",
+                        "fechaFinal": "",
+                        "cantidad": 0,
+                    },
+                    "fechaRecepcionSeleccionado": {"seleccion": [], "descartado": []},
+                    "fechaInicio": {
+                        "fechaInicial": f"01/01/{self.ano_de_empezar} 00:00",
+                        "fechaFinal": f"31/12/{self.ano_de_terminal} 00:00",
+                    },
+                    "fechaInicioSeleccionado": {
+                        "fechaInicial": "",
+                        "fechaFinal": "",
+                        "cantidad": 0,
+                    },
+                    "fechaInterposicion": {
+                        "fechaInicial": "",
+                        "fechaFinal": "",
+                        "cantidad": 0,
+                    },
+                    "fechaInterposicionSeleccionado": {
+                        "fechaInicial": "",
+                        "fechaFinal": "",
+                        "cantidad": 0,
+                    },
+                    "anioQueja": {"seleccion": [], "descartado": []},
+                    "sentidoResolucion": {"seleccion": [], "descartado": []},
+                    "obligacionesTransparencia": {
+                        "seleccion": self.id_obligacion,
+                        "descartado": [],
+                    },
+                    "obligacionesTransparenciaLocales": {
+                        "seleccion": [],
+                        "descartado": [],
+                    },
+                    "anioSolicitud": {"seleccion": [], "descartado": []},
+                    "tipoRespuesta": {"seleccion": [], "descartado": []},
+                }
+                baby_Fetch = self.generate_json_js_code(payload=payload)
+                await page.wait_for_timeout(500)
+                await page.evaluate(baby_Fetch)
+                await page.wait_for_load_state("networkidle", timeout=60**3)
+                await page.wait_for_timeout(700)
+                logger_PNT.info(
+                    f"desgargar JSON for {self.nombre_del_sujeto}\n index: {self.index} faltan: {self.total_pages - self.index}"
+                )
+                print(
+                    f"desgargar JSON for {self.nombre_del_sujeto} index: {self.index} faltan: {self.total_pages - self.index}"
+                )
+                sys.stdout.flush()
+                self.index += 1
+                if self.index <= self.total_pages:
+                    self.save_state_progress()
+                    self.save_state()
 
     async def launch_Fetch_requests(
         self,
         url,
         page,
-    ) -> pd.DataFrame:
+    ):
 
         try:
             sleep(1)
             await self.makeFetch(page=page)
-            await page.pause()
+            await page.close()
+            self.send_notification(
+                title="Terminaste descargar",
+                message="felicidades terminaste descargar este sesion elige otros opiciones en el app para empezar de nuevo",
+            )
         except TimeoutError:
 
             logger_PNT.error(f"retry {self.index}")
@@ -377,14 +360,12 @@ class ScrapingDataFramePnt:
             await self.launch_Fetch_requests(url=url, page=page)
 
     async def handle_load(self):
-        print("Page has reloaded!")
         if self.index > 1:
             self.index -= 2
-
             self.save_state()
 
     # Function for starting the browser
-    async def launch_browser(self, url) -> pd.DataFrame:
+    async def launch_browser(self, url):
 
         async with async_playwright() as p:
             try:
@@ -401,13 +382,13 @@ class ScrapingDataFramePnt:
                     datajson = await self.create_json(res=res)
                     return datajson
 
-                page.on("load", await self.handle_load())
+                page.on("load", await self.handle_load())  # type: ignore
                 page.on(
                     "response",
-                    lambda res: asyncio.ensure_future(handle_response(res=res)),
+                    lambda res: asyncio.ensure_future(handle_response(res=res)),  # type: ignore
                 )
                 await page.goto(url, timeout=0, wait_until="load")
-                page.wait_for_timeout(3500)
+                await page.wait_for_timeout(3500)
                 return await self.launch_Fetch_requests(
                     url=url,
                     page=page,
@@ -449,13 +430,8 @@ class ScrapingDataFramePnt:
                     title="ERR_INTERNET_DISCONNECTED",
                     message="Unable to connect to the internet. Please check your network connection.",
                 )
-                attempt += 1
-                logger_PNT.warning(f"Error (attempt {attempt}): {e}")
-                sleep_time = 720 * (2 ** (attempt - 1)) + random.uniform(0, 0.1)
-                print(f"Retrying  in {sleep_time:.2f} seconds...")
-                sleep(sleep_time)
                 asyncio.run(
-                    self.fetch_batch_urls(
+                    self.launch_browser(
                         url="https://buscador.plataformadetransparencia.org.mx/buscador/temas"
                     )
                 )
