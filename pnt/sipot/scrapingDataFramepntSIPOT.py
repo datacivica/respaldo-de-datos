@@ -68,7 +68,7 @@ class ScrapingDataFramePnt:
         colaboradora,
         hash_file_id,
     ):
-        self.total_pages = 100000
+        self.total_pages = self.load_state_progress()
         self.json_data = ""
         self.id_sujeto_obligado = id_sujeto_obligado.split(",")
         self.nombre_del_sujeto = nombre_del_sujeto
@@ -81,17 +81,20 @@ class ScrapingDataFramePnt:
         else:
             self.id_obligacion = []
 
-        self.index = self.load_state()
+        self.index = 0
         self.search_size = 100
         self.ano_de_empezar = ano_de_empezar
         self.ano_de_terminal = ano_de_terminal
         self.colaboradora = colaboradora
+        self.registros_sujeto = None
+        self.load_state()
 
     def send_notification(self, title, message):
         """Function to make notification"""
         try:
             if notification.notify:
                 notification.notify(title=title, message=message, timeout=5)
+
         except NotImplementedError as e:
             print(f"Error: {e}")
 
@@ -101,22 +104,27 @@ class ScrapingDataFramePnt:
         sha256.update(data.encode("utf-8"))
         return sha256.hexdigest()
 
-    def load_state(self) -> int:
-        """Load Index state from .json file"""
-        try:
-            path_file = f"{self.hash_file_id}_state.json"
-            with open(path_file, "r", encoding="utf-8") as f:
-                state = json.load(f)
-                return state["index"]
-        except FileNotFoundError:
-            return 0
+    def load_state(self):
+        if os.path.exists(f"{self.hash_file_id}_state.json"):
+            with open(f"{self.hash_file_id}_state.json", "r") as file:
+                state = json.load(file)
+                self.registros_sujeto = state.get("registros_sujeto")
+                self.index = state.get("index", 0)
 
     def save_state(self):
-        """Save index state for the progress"""
-        state = {"index": self.index}
-        path_file = f"{self.hash_file_id}_state.json"
-        with open(path_file, "w", encoding="utf-8") as f:
-            json.dump(state, f)
+        state = {"registros_sujeto": self.registros_sujeto, "index": self.index}
+        with open(f"{self.hash_file_id}_state.json", "w") as file:
+            json.dump(state, file)
+
+    def load_state_progress(self):
+        """Load state_progress state from .json file"""
+        try:
+            path_file = f"progress.json"
+            with open(path_file, "r", encoding="utf-8") as f:
+                state = json.load(f)
+                return state["final_index"]
+        except FileNotFoundError:
+            return 1
 
     def save_state_progress(self):
         """Save"""
@@ -135,9 +143,18 @@ class ScrapingDataFramePnt:
             if "consultaTotal" not in res.url:
                 json_data = await res.json()
                 if json_data is not None:
-                    self.nombre_del_sujeto = json_data["paylod"][
+
+                    sujetos_obligados = json_data.get("paylod", {}).get(
                         "sujetosObligadosSeleccionados"
-                    ][0]["nombreGrupo"]
+                    )
+
+                    if sujetos_obligados:
+                        self.nombre_del_sujeto = sujetos_obligados[0].get("nombreGrupo")
+                    else:
+                        self.send_notification(
+                            title="Advertencia",
+                            message="No se encontraron obligados para sujetos",
+                        )
                     obligacionesTransparencia = json_data["paylod"][
                         "obligacionesTransparenciaSeleccionados"
                     ]
@@ -236,107 +253,124 @@ class ScrapingDataFramePnt:
         console.error('Error:', error);
         }});"""
 
-    async def makeFetch(self, page):
+    async def makeFetch(self, page, sujeto):
         global sujetoUniqo
-        for sujeto in self.id_sujeto_obligado:
-            while self.index <= self.total_pages:
-                payload = {
-                    "contenido": "20*",
-                    "idCompartido": "",
-                    "comboEncabezado": False,
-                    "numeroPagina": self.index,
-                    "temas": {"seleccion": [], "descartado": []},
-                    "cantidad": self.search_size,
-                    "dePaginador": True,
-                    "folio": "",
-                    "expediente": "",
-                    "detalleBusqueda": "",
-                    "filtroSeleccionado": "",
-                    "tipoOrdenamiento": 1,
-                    "coleccion": "SIPOT",
-                    "sujetosObligados": {
-                        "seleccion": [sujeto],
-                        "descartado": [],
-                    },
-                    "organosGarantes": {
-                        "seleccion": [],
-                        "descartado": [],
-                    },
-                    "subtemas": {"seleccion": [], "descartado": []},
-                    "fechaResolucion": {
-                        "fechaInicial": "",
-                        "fechaFinal": "",
-                        "cantidad": 0,
-                    },
-                    "fechaResolucionSeleccionado": {
-                        "fechaInicial": "",
-                        "fechaFinal": "",
-                        "cantidad": 0,
-                    },
-                    "fechaRecepcion": {
-                        "fechaInicial": "",
-                        "fechaFinal": "",
-                        "cantidad": 0,
-                    },
-                    "fechaRecepcionSeleccionado": {"seleccion": [], "descartado": []},
-                    "fechaInicio": {
-                        "fechaInicial": f"01/01/{self.ano_de_empezar} 00:00",
-                        "fechaFinal": f"31/12/{self.ano_de_terminal} 00:00",
-                    },
-                    "fechaInicioSeleccionado": {
-                        "fechaInicial": "",
-                        "fechaFinal": "",
-                        "cantidad": 0,
-                    },
-                    "fechaInterposicion": {
-                        "fechaInicial": "",
-                        "fechaFinal": "",
-                        "cantidad": 0,
-                    },
-                    "fechaInterposicionSeleccionado": {
-                        "fechaInicial": "",
-                        "fechaFinal": "",
-                        "cantidad": 0,
-                    },
-                    "anioQueja": {"seleccion": [], "descartado": []},
-                    "sentidoResolucion": {"seleccion": [], "descartado": []},
-                    "obligacionesTransparencia": {
-                        "seleccion": self.id_obligacion,
-                        "descartado": [],
-                    },
-                    "obligacionesTransparenciaLocales": {
-                        "seleccion": [],
-                        "descartado": [],
-                    },
-                    "anioSolicitud": {"seleccion": [], "descartado": []},
-                    "tipoRespuesta": {"seleccion": [], "descartado": []},
-                }
-                baby_Fetch = self.generate_json_js_code(payload=payload)
-                await page.wait_for_timeout(500)
-                await page.evaluate(baby_Fetch)
-                await page.wait_for_load_state("networkidle", timeout=60**3)
-                await page.wait_for_timeout(700)
-                logger_PNT.info(
-                    f"desgargar JSON for {self.nombre_del_sujeto}\n index: {self.index} faltan: {self.total_pages - self.index}"
-                )
-                print(
-                    f"desgargar JSON for {self.nombre_del_sujeto} index: {self.index} faltan: {self.total_pages - self.index}"
-                )
-                sys.stdout.flush()
-                self.index += 1
-                if self.index <= self.total_pages:
-                    self.save_state_progress()
-                    self.save_state()
+        self.registros_sujeto = sujeto
+        # self.save_state_sujeto()
+        # self.load_state_sujeto()
+        while self.index <= self.total_pages:
+            payload = {
+                "contenido": "20*",
+                "idCompartido": "",
+                "comboEncabezado": False,
+                "numeroPagina": self.index,
+                "temas": {"seleccion": [], "descartado": []},
+                "cantidad": self.search_size,
+                "dePaginador": True,
+                "folio": "",
+                "expediente": "",
+                "detalleBusqueda": "",
+                "filtroSeleccionado": "",
+                "tipoOrdenamiento": 1,
+                "coleccion": "SIPOT",
+                "sujetosObligados": {
+                    "seleccion": [self.registros_sujeto],
+                    "descartado": [],
+                },
+                "organosGarantes": {
+                    "seleccion": [],
+                    "descartado": [],
+                },
+                "subtemas": {"seleccion": [], "descartado": []},
+                "fechaResolucion": {
+                    "fechaInicial": "",
+                    "fechaFinal": "",
+                    "cantidad": 0,
+                },
+                "fechaResolucionSeleccionado": {
+                    "fechaInicial": "",
+                    "fechaFinal": "",
+                    "cantidad": 0,
+                },
+                "fechaRecepcion": {
+                    "fechaInicial": "",
+                    "fechaFinal": "",
+                    "cantidad": 0,
+                },
+                "fechaRecepcionSeleccionado": {"seleccion": [], "descartado": []},
+                "fechaInicio": {
+                    "fechaInicial": f"01/01/{self.ano_de_empezar} 00:00",
+                    "fechaFinal": f"31/12/{self.ano_de_terminal} 23:59",
+                },
+                "fechaInicioSeleccionado": {
+                    "fechaInicial": "",
+                    "fechaFinal": "",
+                    "cantidad": 0,
+                },
+                "fechaInterposicion": {
+                    "fechaInicial": "",
+                    "fechaFinal": "",
+                    "cantidad": 0,
+                },
+                "fechaInterposicionSeleccionado": {
+                    "fechaInicial": "",
+                    "fechaFinal": "",
+                    "cantidad": 0,
+                },
+                "anioQueja": {"seleccion": [], "descartado": []},
+                "sentidoResolucion": {"seleccion": [], "descartado": []},
+                "obligacionesTransparencia": {
+                    "seleccion": self.id_obligacion,
+                    "descartado": [],
+                },
+                "obligacionesTransparenciaLocales": {
+                    "seleccion": [],
+                    "descartado": [],
+                },
+                "anioSolicitud": {"seleccion": [], "descartado": []},
+                "tipoRespuesta": {"seleccion": [], "descartado": []},
+            }
+            baby_Fetch = self.generate_json_js_code(payload=payload)
+            await page.wait_for_timeout(500)
+            await page.evaluate(baby_Fetch)
+            await page.wait_for_load_state("networkidle", timeout=60**3)
+            await page.wait_for_timeout(700)
+            logger_PNT.info(
+                f"desgargar JSON for {self.nombre_del_sujeto}\n index: {self.index} faltan: {self.total_pages - self.index}"
+            )
+            print(
+                f"desgargar JSON for {self.nombre_del_sujeto} index: {self.index} faltan: {self.total_pages - self.index}"
+            )
+            sys.stdout.flush()
+            self.index += 1
+            if self.index <= self.total_pages:
+                self.save_state_progress()
+                self.save_state()
 
     async def launch_Fetch_requests(
         self,
         url,
         page,
     ):
-
         try:
-            sleep(1)
-            await self.makeFetch(page=page)
+            start_index = 0
+            if self.registros_sujeto:
+                try:
+                    start_index = self.id_sujeto_obligado.index(self.registros_sujeto)
+                except ValueError:
+                    start_index = 0
+
+            for i in range(start_index, len(self.id_sujeto_obligado)):
+                sujeto = self.id_sujeto_obligado[i]
+                await self.makeFetch(page=page, sujeto=sujeto)
+
+                if self.index > self.total_pages:
+                    self.index = 0
+                    self.save_state()
+
+                self.registros_sujeto = sujeto
+                self.save_state()
+
             await page.close()
             self.send_notification(
                 title="Terminaste descargar",
@@ -387,6 +421,7 @@ class ScrapingDataFramePnt:
                     "response",
                     lambda res: asyncio.ensure_future(handle_response(res=res)),  # type: ignore
                 )
+
                 await page.goto(url, timeout=0, wait_until="load")
                 await page.wait_for_timeout(3500)
                 return await self.launch_Fetch_requests(
