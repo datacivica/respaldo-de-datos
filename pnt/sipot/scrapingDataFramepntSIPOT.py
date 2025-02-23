@@ -207,7 +207,7 @@ class ScrapingDataFramePnt:
                     else:
                         data_to_insert = (
                             self.colaboradora,
-                            self.id_sujeto_obligado,
+                            self.registros_sujeto,
                             self.nombre_del_sujeto,
                             self.id_obligacion,
                             "|".join(obligacionesTransparencia_list),
