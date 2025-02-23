@@ -25,8 +25,8 @@ for key, value in db_params.items():
 create_table_query = """
         CREATE TABLE IF NOT EXISTS progresos_respaldo (
             id SERIAL PRIMARY KEY,
-            colaboradora VARCHAR TEXT,
-            identificador_sujetosObligados VARCHAR TEXT,
+            colaboradora TEXT,
+            identificador_sujetosObligados TEXT,
             sujetosObligado TEXT,
             identificador_obligacionesTransparencia TEXT,
             obligacionesTransparencia TEXT,
