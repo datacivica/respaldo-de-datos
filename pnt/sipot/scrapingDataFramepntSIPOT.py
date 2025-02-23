@@ -169,6 +169,9 @@ class ScrapingDataFramePnt:
                     )
                     if not os.path.exists(f"output_PNT_SIPOT/{self.nombre_del_sujeto}"):
                         os.mkdir(f"output_PNT_SIPOT/{self.nombre_del_sujeto}")
+                    if not os.path.exists(
+                        f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}"
+                    ):
                         os.mkdir(
                             f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}"
                         )

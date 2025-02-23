@@ -244,11 +244,13 @@ def run_script():
         filtered_df = dfSujetoObligaciones[
             dfSujetoObligaciones["nombreGrupo"].isin(sujetos)
         ]
-        filtered_df_organos = dfSujetoObligaciones[
-            dfSujetoObligaciones["nombreGrupo"].isin(sujetos)
-        ]
+
         sujetoObligadoID = filtered_df["identificadorGrupo"].tolist()
-        stringtohash = f"{sujetoObligadoID}".join(obligaciones)
+        stringtohash = (
+            f"{ano_de_empezar.get()}_{ano_de_terminal.get()}_{sujetoObligadoID}".join(
+                obligaciones
+            )
+        )
         hashsesion = create_hash(stringtohash)
         send_notification(
             title=":(🫶):",
