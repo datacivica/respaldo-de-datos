@@ -203,24 +203,23 @@ class ScrapingDataFramePnt:
                             title="Advertencia",
                             message="estos datos ya estan en la base de datos no se guardaran, solo guardan local",
                         )
-                        return
+                        # return
                     else:
-
-                        async with aiof.open(filename, "w") as out:
-                            await out.write(json_str)
-                            await out.flush()
-                            await out.close()
-                            data_to_insert = (
-                                self.colaboradora,
-                                self.id_sujeto_obligado,
-                                self.nombre_del_sujeto,
-                                self.id_obligacion,
-                                "|".join(obligacionesTransparencia_list),
-                                self.index,
-                                json_str,
-                                hash_key,
-                            )
-                            db_pnt.insert_db(data_to_insert)
+                        data_to_insert = (
+                            self.colaboradora,
+                            self.id_sujeto_obligado,
+                            self.nombre_del_sujeto,
+                            self.id_obligacion,
+                            "|".join(obligacionesTransparencia_list),
+                            self.index,
+                            json_str,
+                            hash_key,
+                        )
+                        db_pnt.insert_db(data_to_insert)
+                    async with aiof.open(filename, "w") as out:
+                        await out.write(json_str)
+                        await out.flush()
+                        await out.close()
 
                     self.json_data = f"{json_data}"
 
