@@ -1,0 +1,7 @@
+asyncio
+numpy
+pandas
+playwright
+nest-asyncio
+psycopg2
+dotenv
