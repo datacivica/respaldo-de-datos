@@ -16,7 +16,7 @@ from time import sleep
 
 import db_pnt
 import nest_asyncio
-import pandas as pd
+import aiofiles as aiof
 from playwright._impl._errors import Error as PlaywrightError
 from playwright._impl._errors import TimeoutError
 from playwright.async_api import async_playwright
@@ -44,7 +44,6 @@ logger_PNT.addHandler(file_download_handler)
 #######################################################
 #######################################################
 nest_asyncio.apply()
-listObligacion = []
 
 
 class ScrapingDataFramePnt:
@@ -55,12 +54,13 @@ class ScrapingDataFramePnt:
         organos,
         colaboradora,
     ):
-        self.total_pages = 2000
+        self.total_pages = 2
         self.json_data = ""
         self.sort_anos = getAnos(anos)
         self.anos = self.sort_anos
         self.id_ano = [obj.get("id") for obj in self.anos]
         self.organos = getOrgano(organos)
+        self.organoName = organos[0]
         self.coleccion = coleccion
         self.colaboradora = colaboradora
         self.index = 0
@@ -103,8 +103,26 @@ class ScrapingDataFramePnt:
                 ]
                 if pages > 0:
                     self.total_pages = pages
+                elif pages == None:
+                    self.total_pages = 0
                 else:
                     self.total_pages = 0
+                coleccion_folder = self.coleccion.lower()
+                if not os.path.exists(f"buscador_tematico/{coleccion_folder}"):
+                    os.mkdir(f"buscador_tematico/{coleccion_folder}")
+                if not os.path.exists(
+                    f"buscador_tematico/{coleccion_folder}/{self.organoName}"
+                ):
+                    os.mkdir(f"buscador_tematico/{coleccion_folder}/{self.organoName}")
+
+                if not os.path.exists(
+                    f"buscador_tematico/{coleccion_folder}/{self.organoName}/{ano}"
+                ):
+                    os.mkdir(
+                        f"buscador_tematico/{coleccion_folder}/{self.organoName}/{ano}"
+                    )
+
+                filename = f"buscador_tematico/{coleccion_folder}/{self.organoName}/{ano}/{self.coleccion}_{self.index}_.json"
                 json_str = json.dumps(json_data)
                 json_to_hash = json_data["paylod"]["datosSolr"]
                 hash_key = self.generate_hash(f"{json_to_hash}")
@@ -120,13 +138,17 @@ class ScrapingDataFramePnt:
                 else:
                     data_to_insert = (
                         self.colaboradora,
-                        self.coleccion,
+                        coleccion_folder,
                         self.organos_Garantes_str,
                         ano,
                         json_str,
                         hash_key,
                     )
                     db_pnt.insert_db(data_to_insert)
+                async with aiof.open(filename, "w") as out:
+                    await out.write(json_str)
+                    await out.flush()
+                    await out.close()
 
                 self.json_data = f"{json_data}"
 
@@ -181,7 +203,6 @@ class ScrapingDataFramePnt:
 
             await page.wait_for_timeout(500)
             await page.evaluate(baby_Fetch)
-            print("networkidle")
             logger_PNT.info(
                 f"desgargar JSON {self.coleccion} Ano {ano.get("ano")} organos:{self.organos_Garantes_str} index: {self.index} faltan: {self.total_pages - self.index}"
             )
@@ -277,14 +298,14 @@ class ScrapingDataFramePnt:
         #######################################################
         logging.basicConfig(level=logging.INFO)
 
-        if not os.path.exists(f"output_PNT_SIPOT"):
-            os.mkdir(f"output_PNT_SIPOT")
+        if not os.path.exists(f"buscador_tematico"):
+            os.mkdir(f"buscador_tematico")
         db_pnt.create_db()
         try:
             start_time = time.time()
             asyncio.run(
                 self.launch_browser(
-                    url="https://tematicos.plataformadetransparencia.org.mx/tematico/sueldos"
+                    url="https://tematicos.plataformadetransparencia.org.mx/tematico"
                 )
             )
 
@@ -298,7 +319,7 @@ class ScrapingDataFramePnt:
                 )
                 asyncio.run(
                     self.launch_browser(
-                        url="https://tematicos.plataformadetransparencia.org.mx/tematico/sueldos"
+                        url="https://tematicos.plataformadetransparencia.org.mx/tematico"
                     )
                 )
 

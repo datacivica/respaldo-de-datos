@@ -88,8 +88,6 @@ def insert_db(data_to_insert):
         cursor.close()
         conn.close()
 
-        print("Data inserted successfully.")
-
     except Exception as e:
         print(f"An error occurred: {e}")
 
@@ -117,7 +115,6 @@ def select_db(select_query):
             conn.close()
             return hash_key_value
         else:
-            print("No hash_key found for the given criteria.")
             return hash_key_value
 
     except (Exception, psycopg2.DatabaseError) as error:
