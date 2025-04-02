@@ -32,6 +32,8 @@ def create_commends(args):
 
     organos = args.organos
     tematicos = [
+        "directorio",
+        "sueldos",
         "Servicios",
         "Contratos",
         "Tramites",
