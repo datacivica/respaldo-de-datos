@@ -75,6 +75,7 @@ class ScrapingDataFramePnt:
         self.id_obligacion_optional = obligacion
         self.hash_file_id = hash_file_id
         self.id_obligacion = []
+
         if self.id_obligacion_optional:
             list_obligacion_optional = self.id_obligacion_optional.split(",")
             self.id_obligacion.extend(list_obligacion_optional)
@@ -135,95 +136,101 @@ class ScrapingDataFramePnt:
 
     #  create json file from response
     async def create_json(self, res):
-
         if (
             f"https://backbuscadorinteligente.plataformadetransparencia.org.mx/api/buscadorinteligente/buscador/consulta"
-            in res.url
+            not in res.url
         ):
-            if "consultaTotal" not in res.url:
-                json_data = await res.json()
-                if json_data is not None:
+            return
 
-                    sujetos_obligados = json_data.get("paylod", {}).get(
-                        "sujetosObligadosSeleccionados"
-                    )
+        if "consultaTotal" in res.url:
+            return
 
-                    if sujetos_obligados:
-                        self.nombre_del_sujeto = sujetos_obligados[0].get("nombreGrupo")
-                    else:
-                        self.send_notification(
-                            title="Advertencia",
-                            message="No se encontraron obligados para sujetos",
-                        )
-                    obligacionesTransparencia = json_data["paylod"][
-                        "obligacionesTransparenciaSeleccionados"
-                    ]
-                    obligacionesTransparencia_list = [
-                        item["nombreGrupo"] for item in obligacionesTransparencia
-                    ]
-                    total_page_from_json = json_data["paylod"]["paginador"][
-                        "numeroPaginas"
-                    ]
-                    self.total_pages = (
-                        int(total_page_from_json) if total_page_from_json else 0
-                    )
-                    if not os.path.exists(f"output_PNT_SIPOT/{self.nombre_del_sujeto}"):
-                        os.mkdir(f"output_PNT_SIPOT/{self.nombre_del_sujeto}")
-                    if not os.path.exists(
-                        f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}"
-                    ):
-                        os.mkdir(
-                            f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}"
-                        )
+        json_data = await res.json()
 
-                    if not os.path.exists(
-                        f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia"
-                    ):
-                        os.mkdir(
-                            f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia"
-                        )
-                    if not os.path.exists(
-                        f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia/{self.hash_file_id}"
-                    ):
-                        os.mkdir(
-                            f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia/{self.hash_file_id}"
-                        )
+        if json_data is None:
+            return ""
 
-                    filename = f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia/{self.hash_file_id}/{self.nombre_del_sujeto.replace(' ', '_')}_{self.index}_.json"
-                    json_str = json.dumps(json_data)
-                    json_to_hash = json_data["paylod"]["resultado"]["informacion"]
-                    hash_key = self.generate_hash(f"{json_to_hash}")
-                    select_query = f"""
-                        SELECT hash_key
-                        FROM progresos_respaldo
-                        WHERE hash_key = '{hash_key}';
-                        """
-                    if hash_key == db_pnt.select_db(select_query):
-                        self.send_notification(
-                            title="Advertencia",
-                            message="estos datos ya estan en la base de datos no se guardaran, solo guardan local",
-                        )
-                        # return
-                    else:
-                        data_to_insert = (
-                            self.colaboradora,
-                            self.registros_sujeto,
-                            self.nombre_del_sujeto,
-                            self.id_obligacion,
-                            "|".join(obligacionesTransparencia_list),
-                            self.index,
-                            json_str,
-                            hash_key,
-                        )
-                        db_pnt.insert_db(data_to_insert)
-                    async with aiof.open(filename, "w") as out:
-                        await out.write(json_str)
-                        await out.flush()
-                        await out.close()
+        sujetos_obligados = json_data.get("paylod", {}).get(
+            "sujetosObligadosSeleccionados"
+        )
 
-                    self.json_data = f"{json_data}"
+        if sujetos_obligados:
+            self.nombre_del_sujeto = sujetos_obligados[0].get("nombreGrupo")
+        else:
+            self.send_notification(
+                title="Advertencia",
+                message="No se encontraron obligados para sujetos",
+            )
 
-                return self.json_data
+        obligacionesTransparencia = json_data["paylod"][
+            "obligacionesTransparenciaSeleccionados"
+        ]
+        obligacionesTransparencia_list = [
+            item["nombreGrupo"] for item in obligacionesTransparencia
+        ]
+        total_page_from_json = json_data["paylod"]["paginador"][
+            "numeroPaginas"
+        ]
+        self.total_pages = (
+            int(total_page_from_json) if total_page_from_json else 0
+        )
+        if not os.path.exists(f"output_PNT_SIPOT/{self.nombre_del_sujeto}"):
+            os.mkdir(f"output_PNT_SIPOT/{self.nombre_del_sujeto}")
+        if not os.path.exists(
+            f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}"
+        ):
+            os.mkdir(
+                f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}"
+            )
+
+        if not os.path.exists(
+            f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia"
+        ):
+            os.mkdir(
+                f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia"
+            )
+        if not os.path.exists(
+            f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia/{self.hash_file_id}"
+        ):
+            os.mkdir(
+                f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia/{self.hash_file_id}"
+            )
+
+        filename = f"output_PNT_SIPOT/{self.nombre_del_sujeto}/{self.ano_de_empezar}_{self.ano_de_terminal}/obligaciones_de_transparencia/{self.hash_file_id}/{self.nombre_del_sujeto.replace(' ', '_')}_{self.index}_.json"
+        json_str = json.dumps(json_data)
+        json_to_hash = json_data["paylod"]["resultado"]["informacion"]
+        hash_key = self.generate_hash(f"{json_to_hash}")
+        select_query = f"""
+            SELECT hash_key
+            FROM progresos_respaldo
+            WHERE hash_key = '{hash_key}';
+            """
+        if hash_key == db_pnt.select_db(select_query):
+            self.send_notification(
+                title="Advertencia",
+                message="estos datos ya estan en la base de datos no se guardaran, solo guardan local",
+            )
+            # return
+        else:
+            data_to_insert = (
+                self.colaboradora,
+                self.registros_sujeto,
+                self.nombre_del_sujeto,
+                self.id_obligacion,
+                "|".join(obligacionesTransparencia_list),
+                self.index,
+                json_str,
+                hash_key,
+            )
+            db_pnt.insert_db(data_to_insert)
+        async with aiof.open(filename, "w") as out:
+            await out.write(json_str)
+            await out.flush()
+            await out.close()
+
+        self.json_data = f"{json_data}"
+
+        return self.json_data
 
     #  generate json for Convert Python booleans to JavaScript booleans
     def generate_json_js_code(self, payload):
