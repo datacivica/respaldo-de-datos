@@ -60,7 +60,7 @@ if __name__ == "__main__":
         + RESET_COLOR,
     )
 
-    parser.add_argument("--nombreSujeto", type=list, help="Nombre de Sujeto")
+    parser.add_argument("--nombreSujeto", type=str, help="Nombre de Sujeto")
 
     parser.add_argument("--colaboradora", type=str, help="Nombre de la colaboradora")
     parser.add_argument(
