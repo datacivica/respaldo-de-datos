@@ -31,7 +31,7 @@ if __name__ == "__main__":
         "--idSujetoObligado",
         required=True,
         type=str,
-        help=f"""ID de hash de sujeto obligatorio, por favor revise los filtros antes de continuar\n 
+        help=f"""ID de hash de sujeto obligatorio, por favor revise los filtros antes de continuar\n
         {YELLOW}Ejemplo: Ej0QcqjZqYSP04SKbKxVCw== es la Secretaria de Salud - (CDMX)"""
         + RESET_COLOR,
     )
