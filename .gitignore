@@ -2,6 +2,7 @@
 
 # compiled output
 dist/
+buscador_tematico/
 venv/
 archivo_adjunto_sisai/
 build/

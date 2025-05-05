@@ -10,6 +10,8 @@ import hashlib
 import json
 import logging
 import os
+import random
+import zipfile
 
 import time
 from time import sleep
@@ -54,7 +56,7 @@ class ScrapingDataFramePnt:
         organos,
         colaboradora,
     ):
-        self.total_pages = 2
+        self.total_pages = 100000
         self.json_data = ""
         self.sort_anos = getAnos(anos)
         self.anos = self.sort_anos
@@ -64,6 +66,7 @@ class ScrapingDataFramePnt:
         self.coleccion = coleccion
         self.colaboradora = colaboradora
         self.index = 0
+        self.ano_str = 0
         self.currentAno = None
         self.organos_Garantes_str = (
             ",".join(organos) if len(organos) > 0 else "Todos los organos"
@@ -92,21 +95,32 @@ class ScrapingDataFramePnt:
 
         if (
             f"https://backbuscadortematico.plataformadetransparencia.org.mx/api/tematico/buscador/consulta"
-            in res.url
+            not in res.url
         ):
-
+            return
+        try:
             json_data = await res.json()
-            if json_data is not None:
-                pages = json_data["paylod"]["paginador"]["numeroPaginas"]
+            if json_data is None:
+                logger_PNT.warning(
+                    f"json_data error no hay data para descargar {self.coleccion} Ano {ano}"
+                )
+                self.index -= 1
+                self.save_state()
+                pass
+
+            pages = json_data["paylod"]["paginador"]["numeroPaginas"]
+
+            if pages > 0:
+                self.total_pages = pages
+            elif pages == None:
+                self.total_pages = 0
+            else:
+                self.total_pages = 0
+
+            if json_data["paylod"]["anioFechaInicioSeleccionados"]:
                 ano = json_data["paylod"]["anioFechaInicioSeleccionados"][0][
                     "nombreGrupo"
                 ]
-                if pages > 0:
-                    self.total_pages = pages
-                elif pages == None:
-                    self.total_pages = 0
-                else:
-                    self.total_pages = 0
                 coleccion_folder = self.coleccion.lower()
                 if not os.path.exists(f"buscador_tematico/{coleccion_folder}"):
                     os.mkdir(f"buscador_tematico/{coleccion_folder}")
@@ -127,10 +141,10 @@ class ScrapingDataFramePnt:
                 json_to_hash = json_data["paylod"]["datosSolr"]
                 hash_key = self.generate_hash(f"{json_to_hash}")
                 select_query = f"""
-                        SELECT hash_key
-                        FROM respaldo_tematico
-                        WHERE hash_key = '{hash_key}';
-                        """
+                    SELECT hash_key
+                    FROM respaldo_tematico_server
+                    WHERE hash_key = '{hash_key}';
+                    """
                 if hash_key == db_pnt.select_db(select_query):
                     logger_PNT.warning(
                         "estos datos ya estan en la base de datos no se guardaran, solo guardan local"
@@ -138,7 +152,7 @@ class ScrapingDataFramePnt:
                 else:
                     data_to_insert = (
                         self.colaboradora,
-                        coleccion_folder,
+                        self.coleccion,
                         self.organos_Garantes_str,
                         ano,
                         json_str,
@@ -152,7 +166,20 @@ class ScrapingDataFramePnt:
 
                 self.json_data = f"{json_data}"
 
-            return self.json_data
+                return self.json_data
+            else:
+                logger_PNT.warning("no hay data para descargar")
+                return
+
+        except Exception as e:
+            logger_PNT.warning(
+                f"Error al guardar el archivo JSON: {e} {self.coleccion}"
+            )
+            async with aiof.open(f"{self.coleccion}_{self.currentAno}.txt", "a") as out:
+                await out.write(f"{self.index}\n")
+                await out.flush()
+                await out.close()
+            return
 
     def generate_json_js_code(self, payload):
         def convert_booleans(obj):
@@ -167,21 +194,23 @@ class ScrapingDataFramePnt:
 
         converted_payload = convert_booleans(payload)
 
-        return f"""fetch('https://backbuscadortematico.plataformadetransparencia.org.mx/api/tematico/buscador/consulta', {{
-        method: 'POST',
-        headers: {{
-            'Content-Type': 'application/json',
-            'origin': 'backbuscadortematico.plataformadetransparencia.org.mx'
-        }},
-        body: JSON.stringify({converted_payload}) // Your JSON payload
-        }})
-        .then(response => response.json())
-        .then(data => {{
-        console.log('Success:', data);
-        }})
-        .catch(error => {{
-        console.error('Error:', error);
-        }});"""
+        return f"""
+        (async () => {{
+            try {{
+            const response = await fetch('https://backbuscadortematico.plataformadetransparencia.org.mx/api/tematico/buscador/consulta', {{
+                method: 'POST',
+                headers: {{
+                'Content-Type': 'application/json'
+                }},
+                body: JSON.stringify({converted_payload})
+            }});
+
+            const data = await response.json();
+            console.log('Success:', data);
+            }} catch (error) {{
+            console.error('Error:', error);
+            }}
+        }})();"""
 
     async def makeFetch(self, page, ano):
         self.currentAno = ano.get("id")
@@ -193,21 +222,29 @@ class ScrapingDataFramePnt:
                 "coleccion": self.coleccion,
                 "dePaginador": True,
                 "idCompartido": "",
-                "filtroSeleccionado": "",
+                "filtroSeleccionado": "anioFechaInicio",
                 "tipoOrdenamiento": "COINCIDENCIA",
+                "jsonAtributos": {
+                    "idEntidadFederativa": "".join(self.organos),
+                },
                 "sujetosObligados": {"seleccion": [], "descartado": []},
-                "organosGarantes": {"seleccion": self.organos, "descartado": []},
+                "organosGarantes": {"seleccion": [], "descartado": []},
                 "anioFechaInicio": {"seleccion": [ano.get("id")], "descartado": []},
             }
             baby_Fetch = self.generate_json_js_code(payload=payload)
 
-            await page.wait_for_timeout(500)
+            #            await page.wait_for_timeout(500)
+
+            await page.wait_for_load_state("networkidle", timeout=60**3)
             await page.evaluate(baby_Fetch)
+
+            # print("networkidle")
             logger_PNT.info(
                 f"desgargar JSON {self.coleccion} Ano {ano.get("ano")} organos:{self.organos_Garantes_str} index: {self.index} faltan: {self.total_pages - self.index}"
             )
             self.index += 1
             self.save_state()
+            await page.wait_for_timeout(random.uniform(4000, 8000))
             if self.index <= self.total_pages:
                 self.save_state()
 
@@ -229,6 +266,8 @@ class ScrapingDataFramePnt:
             for i in range(start_ano, len(self.anos)):
                 ano = self.anos[i]
                 await page.wait_for_timeout(500)
+                await page.wait_for_load_state("networkidle", timeout=60**3)
+
                 await self.makeFetch(page=page, ano=ano)
                 if self.index >= self.total_pages:
                     self.index = 0
@@ -250,7 +289,9 @@ class ScrapingDataFramePnt:
                 f" retry {self.index} ---Exception Error Page.evaluate makeFetch()"
             )
             await page.wait_for_timeout(5000)
-            await self.launch_Fetch_requests(url=url, page=page)
+            await self.launch_browser(
+                url="https://tematicos.plataformadetransparencia.org.mx/tematico"
+            )
 
     async def handle_load(self):
         if self.index > 1:
@@ -292,6 +333,9 @@ class ScrapingDataFramePnt:
                 logger_PNT.error(
                     f" stop {self.index} ---PlaywrightError Error page was closed"
                 )
+                await self.launch_browser(
+                    url="https://tematicos.plataformadetransparencia.org.mx/tematico"
+                )
 
     def main(self) -> None:
         #######################################################
@@ -310,7 +354,28 @@ class ScrapingDataFramePnt:
             )
 
             elapsed_time = time.time() - start_time
-            os.remove(f"{self.coleccion}.json")
+
+            # os.remove(f"{self.coleccion.lower()}.json")
+            directory_to_zip = (
+                f"buscador_tematico/{self.coleccion.lower()}/{self.organoName}"
+            )
+            zip_file_name = f"buscador_tematico/{self.coleccion.lower()}_{self.organoName.replace(" ","_")}.zip"
+
+            with zipfile.ZipFile(zip_file_name, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(directory_to_zip):
+                    zipf.write(
+                        root,
+                        os.path.relpath(root, start=os.path.dirname(directory_to_zip)),
+                    )
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        zipf.write(
+                            file_path,
+                            os.path.relpath(
+                                file_path, start=os.path.dirname(directory_to_zip)
+                            ),
+                        )
+
             return print(f"Fetching took {elapsed_time:.2f} seconds")
         except ConnectionError as e:
             if "ERR_INTERNET_DISCONNECTED" in str(e):
