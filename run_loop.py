@@ -38,9 +38,10 @@ def create_commends(args):
         "Contratos",
         "Tramites",
         "servidores_sancionados",
-        "presupueso_anual",
+        "PRESUPUESTO_ANUAL",
         "EJERCICIO_PRESUPUESTO",
         "resoluciones",
+        "PADRON_BENEFICIARIOS",
     ]
 
     skip = True if last_organo or last_tematico else False
