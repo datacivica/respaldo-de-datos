@@ -33,7 +33,6 @@ def create_commends(args):
     organos = args.organos
     tematicos = [
         "directorio",
-        "sueldos",
         "Servicios",
         "Contratos",
         "Tramites",
@@ -41,7 +40,8 @@ def create_commends(args):
         "PRESUPUESTO_ANUAL",
         "EJERCICIO_PRESUPUESTO",
         "resoluciones",
-        "PADRON_BENEFICIARIOS",
+        "sueldos",
+        # "PADRON_BENEFICIARIOS",
     ]
 
     skip = True if last_organo or last_tematico else False
