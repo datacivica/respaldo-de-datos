@@ -4,7 +4,7 @@
 dist/
 buscador_tematico/
 venv/
-archivo_adjunto_sisai/
+archivo_adjunto_sisai_**/
 build/
 !webapp/build/
 downloadstest/
