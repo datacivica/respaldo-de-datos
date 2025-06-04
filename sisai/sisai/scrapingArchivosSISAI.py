@@ -5,16 +5,18 @@
 #######################################################
 #######################################################
 
+from time import sleep
+from pathlib import Path
 import json
 import logging
-from time import sleep
+import os
+import random
 import time
+
 import pandas as pd
 import asyncio
 import nest_asyncio
 from playwright.async_api import async_playwright, Browser
-import os
-import random
 from playwright._impl._errors import Error as PlaywrightError
 from playwright._impl._errors import TimeoutError
 
@@ -47,7 +49,7 @@ nest_asyncio.apply()
 class ScrapingDataFrame:
     def __init__(
         self,
-        file_path: str,
+        file_path: Path,
         sem: int | None,
         downloads_path: str | None,
     ):
@@ -56,7 +58,7 @@ class ScrapingDataFrame:
         self.downloads_path = (
             downloads_path
             if downloads_path is not None
-            else f"archivo_adjunto_sisai_{file_path.replace('.json','')}"
+            else f"archivo_adjunto_sisai_{file_path.stem}"
         )
         self.column_name = "archivo_adjunto"
         self.index = self.load_state()
@@ -64,7 +66,7 @@ class ScrapingDataFrame:
     def load_state(self) -> int:
         try:
             with open(
-                f"state_index_SISAI_{self.file_path.replace('.json','')}.json", "r"
+                f"state_index_SISAI_{self.file_path.stem}.json", "r"
             ) as f:
                 state = json.load(f)
                 return state["index"]
@@ -74,7 +76,7 @@ class ScrapingDataFrame:
     def save_state(self) -> int:
         state = {"index": self.index}
         with open(
-            f"state_index_SISAI_{self.file_path.replace('.json','')}.json", "w"
+            f"state_index_SISAI_{self.file_path.stem}.json", "w"
         ) as f:
             json.dump(state, f)
 
@@ -205,7 +207,7 @@ class ScrapingDataFrame:
         #######################################################
         #######################################################
 
-        df = pd.read_json(f"{self.file_path}", lines=True)
+        df = pd.read_json(self.file_path, lines=True)
 
         if self.column_name not in df.columns:
             raise ValueError(

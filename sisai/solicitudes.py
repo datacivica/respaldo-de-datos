@@ -1,4 +1,6 @@
 import argparse
+from pathlib import Path
+
 from sisai.scrapingArchivosSISAI import ScrapingDataFrame
 
 
@@ -8,7 +10,7 @@ def main():
     )
     parser.add_argument(
         "file_path",
-        type=str,
+        type=Path,
         help="La ruta al archivo que desea procesar. Este archivo debe ser un JSON con registros SISAI.",
     )
     parser.add_argument(
@@ -20,10 +22,12 @@ def main():
     )
     args = parser.parse_args()
 
+    stem = args.file_path.stem
+
     scraping = ScrapingDataFrame(
         file_path=args.file_path,
         sem=1,
-        downloads_path=f"{args.downloads_path}/archivo_adjunto_sisai_{args.file_path.replace('.json','')}",
+        downloads_path=f"{args.downloads_path}/archivo_adjunto_sisai_{args.file_path.stem}",
     )
     scraping.main()
 
